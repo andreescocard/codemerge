@@ -10,7 +10,7 @@ all without ever leaving the editor.
 
 <br />
 
-![VS Code](https://img.shields.io/badge/VS%20Code-^1.92.0-007ACC?style=for-the-badge&logo=visualstudiocode&logoColor=white)
+![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.92.0-007ACC?style=for-the-badge&logo=visualstudiocode&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
 ![Version](https://img.shields.io/badge/version-0.1.0-success?style=for-the-badge)
 
@@ -74,18 +74,27 @@ CodeMerge is designed around a familiar three-panel Git workflow:
 
 ## 📦 Installation
 
-**From the packaged VSIX:**
+CodeMerge is not on the Marketplace yet — build the VSIX from source:
+
+```powershell
+git clone https://github.com/andreescocard/codemerge.git
+cd codemerge
+npm install
+npm run package
+```
+
+This produces `codemerge-0.1.0.vsix`. Install it:
 
 ```powershell
 code --install-extension codemerge-0.1.0.vsix
 ```
 
-**From inside VS Code:**
+**Or, from inside VS Code:**
 
 1. Open the **Extensions** view.
 2. Select the `...` menu.
 3. Choose **Install from VSIX...**.
-4. Pick `codemerge-0.1.0.vsix`.
+4. Pick the generated `codemerge-0.1.0.vsix`.
 
 ---
 
