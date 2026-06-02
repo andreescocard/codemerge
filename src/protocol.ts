@@ -17,7 +17,19 @@ export const MessageType = {
   CherryPick: "cherryPick",
   Fetch: "fetch",
   Pull: "pull",
-  Push: "push"
+  Push: "push",
+  StashPush: "stashPush",
+  StashApply: "stashApply",
+  StashPop: "stashPop",
+  StashDrop: "stashDrop",
+  StashShow: "stashShow",
+  CreateTag: "createTag",
+  DeleteTag: "deleteTag",
+  PushTag: "pushTag",
+  AddRemote: "addRemote",
+  RemoveRemote: "removeRemote",
+  RenameRemote: "renameRemote",
+  SetRemoteUrl: "setRemoteUrl"
 } as const;
 
 export type MessageType = (typeof MessageType)[keyof typeof MessageType];
@@ -30,5 +42,10 @@ export type WebviewMessage = {
   newName?: string;
   upstream?: string;
   hash?: string;
+  ref?: string;
+  tag?: string;
+  remote?: string;
+  url?: string;
+  includeUntracked?: boolean;
   message?: string;
 };

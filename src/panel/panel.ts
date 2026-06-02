@@ -195,6 +195,146 @@ export class CodeMergePanel {
           await this.client.push();
           await this.refresh();
           break;
+        case MessageType.StashPush: {
+          const stashMessage = await vscode.window.showInputBox({
+            prompt: "Stash message",
+            placeHolder: "WIP",
+            ignoreFocusOut: true
+          });
+          if (stashMessage !== undefined) {
+            await this.client.stashPush(stashMessage, Boolean(message.includeUntracked));
+            await this.refresh();
+          }
+          break;
+        }
+        case MessageType.StashApply:
+          if (message.ref) {
+            await this.client.stashApply(message.ref);
+            await this.refresh();
+          }
+          break;
+        case MessageType.StashPop:
+          if (message.ref) {
+            await this.client.stashPop(message.ref);
+            await this.refresh();
+          }
+          break;
+        case MessageType.StashDrop:
+          if (message.ref) {
+            const confirm = await vscode.window.showWarningMessage(
+              `Drop ${message.ref}?`,
+              { modal: true },
+              "Drop"
+            );
+            if (confirm === "Drop") {
+              await this.client.stashDrop(message.ref);
+              await this.refresh();
+            }
+          }
+          break;
+        case MessageType.StashShow:
+          if (message.ref) {
+            const diff = await this.client.stashShow(message.ref);
+            this.panel.webview.postMessage({ type: "diff", path: message.ref, diff });
+          }
+          break;
+        case MessageType.CreateTag: {
+          const name = await vscode.window.showInputBox({
+            prompt: "Tag name",
+            placeHolder: "v1.0.0",
+            ignoreFocusOut: true
+          });
+          if (!name?.trim()) {
+            break;
+          }
+          const ref = await vscode.window.showInputBox({
+            prompt: `Create ${name.trim()} at ref`,
+            value: "HEAD",
+            ignoreFocusOut: true
+          });
+          if (ref?.trim()) {
+            await this.client.createTag(name.trim(), ref.trim());
+            await this.refresh();
+          }
+          break;
+        }
+        case MessageType.DeleteTag:
+          if (message.tag) {
+            const confirm = await vscode.window.showWarningMessage(
+              `Delete tag ${message.tag}?`,
+              { modal: true },
+              "Delete"
+            );
+            if (confirm === "Delete") {
+              await this.client.deleteTag(message.tag);
+              await this.refresh();
+            }
+          }
+          break;
+        case MessageType.PushTag:
+          if (message.tag) {
+            await this.client.pushTag(message.tag);
+            await this.refresh();
+          }
+          break;
+        case MessageType.AddRemote: {
+          const name = await vscode.window.showInputBox({
+            prompt: "Remote name",
+            placeHolder: "origin",
+            ignoreFocusOut: true
+          });
+          if (!name?.trim()) {
+            break;
+          }
+          const url = await vscode.window.showInputBox({
+            prompt: `URL for ${name.trim()}`,
+            ignoreFocusOut: true
+          });
+          if (url?.trim()) {
+            await this.client.addRemote(name.trim(), url.trim());
+            await this.refresh();
+          }
+          break;
+        }
+        case MessageType.RemoveRemote:
+          if (message.remote) {
+            const confirm = await vscode.window.showWarningMessage(
+              `Remove remote ${message.remote}?`,
+              { modal: true },
+              "Remove"
+            );
+            if (confirm === "Remove") {
+              await this.client.removeRemote(message.remote);
+              await this.refresh();
+            }
+          }
+          break;
+        case MessageType.RenameRemote:
+          if (message.remote) {
+            const newName = await vscode.window.showInputBox({
+              prompt: `Rename ${message.remote}`,
+              value: message.remote,
+              ignoreFocusOut: true
+            });
+            if (newName?.trim() && newName.trim() !== message.remote) {
+              await this.client.renameRemote(message.remote, newName.trim());
+              await this.refresh();
+            }
+          }
+          break;
+        case MessageType.SetRemoteUrl:
+          if (message.remote) {
+            const url = await vscode.window.showInputBox({
+              prompt: `Set URL for ${message.remote}`,
+              value: message.url,
+              ignoreFocusOut: true
+            });
+            if (url?.trim()) {
+              await this.client.setRemoteUrl(message.remote, url.trim());
+              await this.refresh();
+            }
+          }
+          break;
       }
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);

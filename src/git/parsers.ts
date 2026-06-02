@@ -1,4 +1,4 @@
-import type { Branch, Commit, GitFile } from "./types";
+import type { Branch, Commit, GitFile, Remote, Stash, Submodule, Tag } from "./types";
 import { formatMtime } from "../utils/format";
 
 export type StatusEntry = Omit<GitFile, "mtimeMs" | "mtimeLabel">;
@@ -51,4 +51,83 @@ export function withMtime(entry: StatusEntry, mtimeMs: number): GitFile {
     mtimeMs,
     mtimeLabel: formatMtime(mtimeMs)
   };
+}
+
+export function parseStashes(output: string): Stash[] {
+  return output
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => {
+      const [ref = "", subject = "", relativeDate = ""] = line.split("\x1f");
+      return { ref, subject, relativeDate };
+    })
+    .filter((stash) => stash.ref);
+}
+
+export function parseTags(output: string): Tag[] {
+  return output
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => {
+      const [name = "", object = "", subject = ""] = line.split("|");
+      return { name, object, subject };
+    })
+    .filter((tag) => tag.name);
+}
+
+export function parseRemotes(output: string): Remote[] {
+  const remotes = new Map<string, Remote>();
+
+  output
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .forEach((line) => {
+      const match = line.match(/^(\S+)\s+(.+)\s+\((fetch|push)\)$/);
+      if (!match) {
+        return;
+      }
+
+      const [, name, url, kind] = match;
+      const remote = remotes.get(name) ?? { name, fetchUrl: "", pushUrl: "" };
+      if (kind === "fetch") {
+        remote.fetchUrl = url;
+      } else {
+        remote.pushUrl = url;
+      }
+      remotes.set(name, remote);
+    });
+
+  return [...remotes.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function parseSubmodules(output: string): Submodule[] {
+  return output
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => {
+      const statusMarker = line[0] ?? " ";
+      const trimmed = line.trim();
+      const [commit = "", path = "", ...descriptionParts] = trimmed.split(/\s+/);
+      const status = submoduleStatus(statusMarker);
+      return {
+        path,
+        commit: commit.replace(/^[+\-U]/, ""),
+        status,
+        description: descriptionParts.join(" ").replace(/^\((.*)\)$/, "$1")
+      };
+    })
+    .filter((submodule) => submodule.path);
+}
+
+function submoduleStatus(marker: string): Submodule["status"] {
+  switch (marker) {
+    case "-":
+      return "notInitialized";
+    case "+":
+      return "modified";
+    case "U":
+      return "conflict";
+    default:
+      return "initialized";
+  }
 }

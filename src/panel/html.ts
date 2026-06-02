@@ -71,18 +71,22 @@ export function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri) {
             <div id="branchMenu" class="contextMenu" hidden></div>
           </section>
           <section class="locationGroup">
-            <div class="locationHeading">Remotes <span>1</span></div>
-            <div class="locationMuted">origin</div>
+            <div class="locationHeading">Remotes <span id="remoteCount">0</span></div>
+            <div id="remoteTree" class="branchTree"></div>
           </section>
           <section class="locationGroup">
-            <div class="locationHeading">Tags <span>0</span></div>
+            <div class="locationHeading">Tags <span id="tagCount">0</span></div>
+            <div id="tagTree" class="branchTree"></div>
           </section>
           <section class="locationGroup">
-            <div class="locationHeading">Stashes <span>0</span></div>
+            <div class="locationHeading">Stashes <span id="stashCount">0</span></div>
+            <div id="stashTree" class="branchTree"></div>
           </section>
           <section class="locationGroup">
-            <div class="locationHeading">Submodules <span>0</span></div>
+            <div class="locationHeading">Submodules <span id="submoduleCount">0</span></div>
+            <div id="submoduleTree" class="branchTree"></div>
           </section>
+          <div id="locationMenu" class="contextMenu" hidden></div>
         </div>
       </aside>
       <div class="columnResizer" data-resizer="locations" title="Resize locations"></div>

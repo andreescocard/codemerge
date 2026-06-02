@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseBranches, parseCommits, parseStatus } from "./parsers";
+import { parseBranches, parseCommits, parseRemotes, parseStashes, parseStatus, parseSubmodules, parseTags } from "./parsers";
 import { formatMtime } from "../utils/format";
 
 describe("git parsers", () => {
@@ -31,6 +31,33 @@ describe("git parsers", () => {
         relativeDate: "2 minutes ago",
         graph: "*"
       }
+    ]);
+  });
+
+  it("parses stash list output", () => {
+    expect(parseStashes("stash@{0}\x1fWIP on main: change file\x1f3 minutes ago\n")).toEqual([
+      { ref: "stash@{0}", subject: "WIP on main: change file", relativeDate: "3 minutes ago" }
+    ]);
+  });
+
+  it("parses tag output", () => {
+    expect(parseTags("v1.0.0|abc1234|release\n")).toEqual([
+      { name: "v1.0.0", object: "abc1234", subject: "release" }
+    ]);
+  });
+
+  it("parses remote output", () => {
+    expect(parseRemotes("origin\thttps://example.test/repo.git (fetch)\norigin\thttps://example.test/repo.git (push)\n")).toEqual([
+      { name: "origin", fetchUrl: "https://example.test/repo.git", pushUrl: "https://example.test/repo.git" }
+    ]);
+  });
+
+  it("parses submodule status output", () => {
+    expect(parseSubmodules(" abc123456789 modules/core (heads/main)\n-deadbeef modules/missing\n+feedface modules/modified (v1.0)\nUbadcafe modules/conflict\n")).toEqual([
+      { path: "modules/core", commit: "abc123456789", status: "initialized", description: "heads/main" },
+      { path: "modules/missing", commit: "deadbeef", status: "notInitialized", description: "" },
+      { path: "modules/modified", commit: "feedface", status: "modified", description: "v1.0" },
+      { path: "modules/conflict", commit: "badcafe", status: "conflict", description: "" }
     ]);
   });
 });

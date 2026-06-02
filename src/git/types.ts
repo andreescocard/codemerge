@@ -22,10 +22,39 @@ export type Branch = {
   current: boolean;
 };
 
+export type Stash = {
+  ref: string;
+  subject: string;
+  relativeDate: string;
+};
+
+export type Tag = {
+  name: string;
+  object: string;
+  subject: string;
+};
+
+export type Remote = {
+  name: string;
+  fetchUrl: string;
+  pushUrl: string;
+};
+
+export type Submodule = {
+  path: string;
+  commit: string;
+  status: "initialized" | "notInitialized" | "modified" | "conflict";
+  description: string;
+};
+
 export type Snapshot = {
   root: string;
   currentBranch: string;
   branches: Branch[];
   commits: Commit[];
   files: GitFile[];
+  stashes: Stash[];
+  tags: Tag[];
+  remotes: Remote[];
+  submodules: Submodule[];
 };

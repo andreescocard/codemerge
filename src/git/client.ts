@@ -2,8 +2,8 @@ import { execFile } from "node:child_process";
 import { stat } from "node:fs/promises";
 import * as path from "node:path";
 import { mapWithConcurrency } from "../utils/async";
-import { parseBranches, parseCommits, parseStatus, withMtime } from "./parsers";
-import type { Branch, Commit, GitFile, Snapshot } from "./types";
+import { parseBranches, parseCommits, parseRemotes, parseStashes, parseStatus, parseSubmodules, parseTags, withMtime } from "./parsers";
+import type { Branch, Commit, GitFile, Remote, Snapshot, Stash, Submodule, Tag } from "./types";
 
 const gitTimeoutMs = 20_000;
 const gitNetworkTimeoutMs = 120_000;
@@ -13,11 +13,15 @@ export class GitClient {
   constructor(private readonly cwd: string) {}
 
   async snapshot(): Promise<Snapshot> {
-    const [branch, branches, commits, files] = await Promise.all([
+    const [branch, branches, commits, files, stashes, tags, remotes, submodules] = await Promise.all([
       this.currentBranch(),
       this.branches(),
       this.commits(),
-      this.status()
+      this.status(),
+      this.stashes(),
+      this.tags(),
+      this.remotes(),
+      this.submodules()
     ]);
 
     return {
@@ -25,7 +29,11 @@ export class GitClient {
       currentBranch: branch,
       branches,
       commits,
-      files
+      files,
+      stashes,
+      tags,
+      remotes,
+      submodules
     };
   }
 
@@ -64,6 +72,80 @@ export class GitClient {
     }));
 
     return [...withMtimes, ...overflow].sort((a, b) => b.mtimeMs - a.mtimeMs || a.path.localeCompare(b.path));
+  }
+
+  async stashes(): Promise<Stash[]> {
+    return parseStashes(await this.git(["stash", "list", "--format=%gd%x1f%gs%x1f%cr"], gitTimeoutMs));
+  }
+
+  stashPush(message: string, includeUntracked: boolean): Promise<string> {
+    const args = ["stash", "push"];
+    if (includeUntracked) {
+      args.push("--include-untracked");
+    }
+    if (message.trim()) {
+      args.push("-m", message.trim());
+    }
+    return this.git(args);
+  }
+
+  stashApply(ref: string): Promise<string> {
+    return this.git(["stash", "apply", ref]);
+  }
+
+  stashPop(ref: string): Promise<string> {
+    return this.git(["stash", "pop", ref]);
+  }
+
+  stashDrop(ref: string): Promise<string> {
+    return this.git(["stash", "drop", ref]);
+  }
+
+  stashShow(ref: string): Promise<string> {
+    return this.git(["stash", "show", "--patch", ref], gitTimeoutMs);
+  }
+
+  async tags(): Promise<Tag[]> {
+    return parseTags(await this.git(["tag", "--format=%(refname:short)|%(objectname:short)|%(subject)"], gitTimeoutMs));
+  }
+
+  createTag(name: string, ref: string, message?: string): Promise<string> {
+    if (message?.trim()) {
+      return this.git(["tag", "-a", name, ref, "-m", message.trim()]);
+    }
+    return this.git(["tag", name, ref]);
+  }
+
+  deleteTag(name: string): Promise<string> {
+    return this.git(["tag", "-d", name]);
+  }
+
+  pushTag(name: string): Promise<string> {
+    return this.git(["push", "origin", name], gitNetworkTimeoutMs);
+  }
+
+  async remotes(): Promise<Remote[]> {
+    return parseRemotes(await this.git(["remote", "-v"], gitTimeoutMs));
+  }
+
+  addRemote(name: string, url: string): Promise<string> {
+    return this.git(["remote", "add", name, url]);
+  }
+
+  removeRemote(name: string): Promise<string> {
+    return this.git(["remote", "remove", name]);
+  }
+
+  renameRemote(oldName: string, newName: string): Promise<string> {
+    return this.git(["remote", "rename", oldName, newName]);
+  }
+
+  setRemoteUrl(name: string, url: string): Promise<string> {
+    return this.git(["remote", "set-url", name, url]);
+  }
+
+  async submodules(): Promise<Submodule[]> {
+    return parseSubmodules(await this.tryGit(["submodule", "status"], gitTimeoutMs));
   }
 
   async diff(filePath: string): Promise<string> {

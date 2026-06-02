@@ -16,11 +16,21 @@
   const fetchButton = document.getElementById("fetchButton");
   const pullButton = document.getElementById("pullButton");
   const pushButton = document.getElementById("pushButton");
+  const moreButton = document.getElementById("moreButton");
   const repoRoot = document.getElementById("repoRoot");
   const currentBranch = document.getElementById("currentBranch");
   const branchTree = document.getElementById("branchTree");
   const branchMenu = document.getElementById("branchMenu");
   const branchCount = document.getElementById("branchCount");
+  const remoteTree = document.getElementById("remoteTree");
+  const remoteCount = document.getElementById("remoteCount");
+  const tagTree = document.getElementById("tagTree");
+  const tagCount = document.getElementById("tagCount");
+  const stashTree = document.getElementById("stashTree");
+  const stashCount = document.getElementById("stashCount");
+  const submoduleTree = document.getElementById("submoduleTree");
+  const submoduleCount = document.getElementById("submoduleCount");
+  const locationMenu = document.getElementById("locationMenu");
   const commitSummaryCount = document.getElementById("commitSummaryCount");
   const changeCount = document.getElementById("changeCount");
   const fileFilter = document.getElementById("fileFilter");
@@ -53,10 +63,10 @@
     resizer.addEventListener("pointerdown", startColumnResize);
   });
   diffResizer.addEventListener("pointerdown", startDiffResize);
-  window.addEventListener("click", closeBranchMenu);
+  window.addEventListener("click", closeMenus);
   window.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
-      closeBranchMenu();
+      closeMenus();
     }
   });
 
@@ -73,6 +83,19 @@
   fetchButton.addEventListener("click", () => post("fetch"));
   pullButton.addEventListener("click", () => post("pull"));
   pushButton.addEventListener("click", () => post("push"));
+  moreButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const rect = event.currentTarget.getBoundingClientRect();
+    openLocationMenu(
+      { clientX: rect.left, clientY: rect.bottom + 4 },
+      [
+        { icon: "file", label: "Stash changes...", action: () => post("stashPush", { includeUntracked: false }) },
+        { icon: "file", label: "Stash including untracked...", action: () => post("stashPush", { includeUntracked: true }) },
+        { icon: "commit", label: "Create tag...", action: () => post("createTag") },
+        { icon: "link", label: "Add remote...", action: () => post("addRemote") }
+      ]
+    );
+  });
   fileFilter.addEventListener("input", () => renderFiles(state.snapshot?.files || []));
   fileSort.addEventListener("change", () => renderFiles(state.snapshot?.files || []));
   commitFilter.addEventListener("input", () => renderCommits(state.snapshot?.commits || []));
@@ -132,6 +155,10 @@
     changeCount.textContent = String(snapshot.files.length);
     commitSummaryCount.textContent = `${snapshot.files.filter((file) => file.staged).length} staged file, ${snapshot.files.filter((file) => !file.staged).length} unstaged files`;
     renderBranches(snapshot);
+    renderRemotes(snapshot.remotes || []);
+    renderTags(snapshot.tags || []);
+    renderStashes(snapshot.stashes || []);
+    renderSubmodules(snapshot.submodules || []);
     renderFiles(snapshot.files);
     renderCommits(snapshot.commits);
   }
@@ -186,6 +213,92 @@
         openBranchMenu(event, branch);
       });
       branchTree.append(branchRow);
+    });
+  }
+
+  function renderRemotes(remotes) {
+    remoteTree.innerHTML = "";
+    remoteCount.textContent = String(remotes.length);
+    if (!remotes.length) {
+      remoteTree.append(emptyLocation("No remotes"));
+      return;
+    }
+
+    remotes.forEach((remote) => {
+      const row = locationRow("link", remote.name, remote.fetchUrl || remote.pushUrl || "No URL configured");
+      row.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        openLocationMenu(event, [
+          { icon: "download", label: `Fetch ${remote.name}`, action: () => post("fetch") },
+          { icon: "edit", label: `Edit URL...`, action: () => post("setRemoteUrl", { remote: remote.name, url: remote.fetchUrl || remote.pushUrl }) },
+          { icon: "edit", label: `Rename ${remote.name}...`, action: () => post("renameRemote", { remote: remote.name }) },
+          { icon: "trash", label: `Remove ${remote.name}`, action: () => post("removeRemote", { remote: remote.name }) }
+        ]);
+      });
+      remoteTree.append(row);
+    });
+  }
+
+  function renderTags(tags) {
+    tagTree.innerHTML = "";
+    tagCount.textContent = String(tags.length);
+    if (!tags.length) {
+      tagTree.append(emptyLocation("No tags"));
+      return;
+    }
+
+    tags.forEach((tag) => {
+      const row = locationRow("commit", tag.name, tag.subject || tag.object);
+      row.addEventListener("click", () => {
+        commitFilter.value = tag.name;
+        renderCommits(state.snapshot?.commits || []);
+      });
+      row.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        openLocationMenu(event, [
+          { icon: "branch", label: `Checkout ${tag.name}`, action: () => post("checkout", { branch: tag.name }) },
+          { icon: "upload", label: `Push ${tag.name}`, action: () => post("pushTag", { tag: tag.name }) },
+          { icon: "trash", label: `Delete ${tag.name}`, action: () => post("deleteTag", { tag: tag.name }) }
+        ]);
+      });
+      tagTree.append(row);
+    });
+  }
+
+  function renderStashes(stashes) {
+    stashTree.innerHTML = "";
+    stashCount.textContent = String(stashes.length);
+    if (!stashes.length) {
+      stashTree.append(emptyLocation("No stashes"));
+      return;
+    }
+
+    stashes.forEach((stash) => {
+      const row = locationRow("file", stash.ref, stash.subject || stash.relativeDate);
+      row.addEventListener("click", () => post("stashShow", { ref: stash.ref }));
+      row.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        openLocationMenu(event, [
+          { icon: "file", label: `Show ${stash.ref}`, action: () => post("stashShow", { ref: stash.ref }) },
+          { icon: "check", label: `Apply ${stash.ref}`, action: () => post("stashApply", { ref: stash.ref }) },
+          { icon: "refresh", label: `Pop ${stash.ref}`, action: () => post("stashPop", { ref: stash.ref }) },
+          { icon: "trash", label: `Drop ${stash.ref}`, action: () => post("stashDrop", { ref: stash.ref }) }
+        ]);
+      });
+      stashTree.append(row);
+    });
+  }
+
+  function renderSubmodules(submodules) {
+    submoduleTree.innerHTML = "";
+    submoduleCount.textContent = String(submodules.length);
+    if (!submodules.length) {
+      submoduleTree.append(emptyLocation("No submodules"));
+      return;
+    }
+
+    submodules.forEach((submodule) => {
+      submoduleTree.append(locationRow("file", submodule.path, `${submodule.status} ${submodule.commit.slice(0, 8)}`.trim()));
     });
   }
 
@@ -355,12 +468,30 @@
     return element;
   }
 
+  function emptyLocation(text) {
+    const element = empty(text);
+    element.classList.add("locationMuted");
+    return element;
+  }
+
+  function locationRow(iconName, name, detail) {
+    const row = document.createElement("button");
+    row.className = "branchRow";
+    row.type = "button";
+    row.title = detail ? `${name} - ${detail}` : name;
+    row.append(icon(iconName), textSpan(name, "branchName"));
+    if (detail) {
+      row.append(textSpan(detail, "fileTime"));
+    }
+    return row;
+  }
+
   function post(type, payload = {}) {
     vscode.postMessage({ type, ...payload });
   }
 
   function openBranchMenu(event, branch) {
-    closeBranchMenu();
+    closeMenus();
     const current = state.snapshot?.currentBranch || "current";
     const items = [
       {
@@ -444,6 +575,40 @@
   function closeBranchMenu() {
     branchMenu.hidden = true;
     branchMenu.innerHTML = "";
+  }
+
+  function closeLocationMenu() {
+    locationMenu.hidden = true;
+    locationMenu.innerHTML = "";
+  }
+
+  function closeMenus() {
+    closeBranchMenu();
+    closeLocationMenu();
+  }
+
+  function openLocationMenu(event, items) {
+    closeMenus();
+    items.forEach((item) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.append(icon(item.icon), textSpan(item.label));
+      button.disabled = Boolean(item.disabled);
+      button.addEventListener("click", () => {
+        closeMenus();
+        if (!item.disabled) {
+          item.action();
+        }
+      });
+      locationMenu.append(button);
+    });
+
+    locationMenu.hidden = false;
+    const menuRect = locationMenu.getBoundingClientRect();
+    const left = Math.min(event.clientX, window.innerWidth - menuRect.width - 8);
+    const top = Math.min(event.clientY, window.innerHeight - menuRect.height - 8);
+    locationMenu.style.left = `${Math.max(4, left)}px`;
+    locationMenu.style.top = `${Math.max(4, top)}px`;
   }
 
   function hideBranch(branchName) {
