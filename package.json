@@ -4,6 +4,7 @@
   "description": "A Sublime Merge-inspired Git client inside VS Code.",
   "version": "0.1.0",
   "publisher": "local",
+  "license": "MIT",
   "engines": {
     "vscode": "^1.92.0"
   },

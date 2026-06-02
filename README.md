@@ -160,4 +160,4 @@ If CodeMerge saves you time, you can support development here:
 
 ## 📄 License
 
-No license file has been added yet. Add one before publishing publicly if you want to define reuse terms.
+Released under the [MIT License](LICENSE) © 2026 Andre Escocard.
