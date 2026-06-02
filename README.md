@@ -1,30 +1,60 @@
-# CodeMerge
+<div align="center">
 
-> A Sublime Merge-inspired Git client that lives inside Visual Studio Code.
+# 🔀 CodeMerge
 
-CodeMerge brings a fast, visual Git workflow into VS Code: a dedicated left-sidebar entry, a full merge-style workbench, branch navigation, recent-change sorting, commit history, file diffs, and common branch operations without leaving the editor.
+### A Sublime Merge–inspired Git client that lives inside Visual Studio Code
 
-<p>
-  <a href="https://buymeacoffee.com/andreescocard">
-    <img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-support%20the%20project-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=000000" alt="Buy me a coffee">
-  </a>
-</p>
+CodeMerge brings a fast, visual Git workflow into VS Code — a dedicated sidebar, a full merge-style workbench,
+branch navigation, recent-change sorting, commit history, file diffs, and common branch operations,
+all without ever leaving the editor.
 
-## Highlights
+<br />
 
-- Activity Bar integration with a CodeMerge sidebar view.
-- Open Repository dialog for choosing any local Git repository.
-- Sublime Merge-style layout with Locations, Commits, Files, Summary, and split diff panes.
-- Resizable Locations, Commits, and diff columns.
-- Changed files sorted by most recent modification time by default.
-- Sort changed files by recent, oldest, path, status, or staged state.
-- Branch checkout, creation, merge, delete, rename, upstream setup, copy, hide/show, and search actions.
-- Branch right-click context menu modeled after Sublime Merge.
-- Commit history with graph rail, refs, author, relative time, and cherry-pick.
-- Stage, unstage, discard, commit, fetch, pull, and push actions.
-- Theme-aware UI using VS Code color tokens.
+![VS Code](https://img.shields.io/badge/VS%20Code-^1.92.0-007ACC?style=for-the-badge&logo=visualstudiocode&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Version](https://img.shields.io/badge/version-0.1.0-success?style=for-the-badge)
 
-## Preview
+<a href="https://buymeacoffee.com/andreescocard">
+  <img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-support%20the%20project-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=000000" alt="Buy me a coffee">
+</a>
+
+</div>
+
+---
+
+## 📑 Contents
+
+- [Highlights](#-highlights)
+- [Preview](#-preview)
+- [Installation](#-installation)
+- [Usage](#-usage)
+- [Branch Menu](#-branch-menu)
+- [Development](#-development)
+- [Roadmap](#-roadmap)
+- [Support](#-support)
+- [License](#-license)
+
+---
+
+## ✨ Highlights
+
+| | Feature |
+|---|---|
+| 🧭 | **Activity Bar integration** — dedicated CodeMerge sidebar view |
+| 📂 | **Open Repository dialog** — choose any local Git repository |
+| 🪟 | **Sublime Merge–style layout** — Locations, Commits, Files, Summary, and split diff panes |
+| ↔️ | **Resizable columns** — Locations, Commits, and diff panes |
+| 🕒 | **Smart sorting** — changed files ordered by most recent modification by default |
+| 🔃 | **Flexible sort** — by recent, oldest, path, status, or staged state |
+| 🌿 | **Full branch ops** — checkout, create, merge, delete, rename, upstream, copy, hide/show, search |
+| 🖱️ | **Context menu** — branch right-click menu modeled after Sublime Merge |
+| 📜 | **Commit history** — graph rail, refs, author, relative time, and cherry-pick |
+| ⚡ | **Staging actions** — stage, unstage, discard, commit, fetch, pull, push |
+| 🎨 | **Theme-aware UI** — built on VS Code color tokens |
+
+---
+
+## 🖼️ Preview
 
 CodeMerge is designed around a familiar three-panel Git workflow:
 
@@ -38,99 +68,96 @@ CodeMerge is designed around a familiar three-panel Git workflow:
 └───────────────┴───────────────────┴───────────────────────────┘
 ```
 
-Add screenshots to `docs/` later and embed them here when you are ready.
+> 💡 Add screenshots to `docs/` and embed them here when you're ready.
 
-## Installation
+---
 
-Install the packaged VSIX from this repository:
+## 📦 Installation
+
+**From the packaged VSIX:**
 
 ```powershell
 code --install-extension codemerge-0.1.0.vsix
 ```
 
-Or install it from VS Code:
+**From inside VS Code:**
 
-1. Open the Extensions view.
-2. Select `...`.
-3. Choose `Install from VSIX...`.
+1. Open the **Extensions** view.
+2. Select the `...` menu.
+3. Choose **Install from VSIX...**.
 4. Pick `codemerge-0.1.0.vsix`.
 
-## Usage
+---
 
-1. Open the CodeMerge icon from the VS Code Activity Bar.
-2. Select `Open Repository...`.
+## 🚀 Usage
+
+1. Open the **CodeMerge** icon from the VS Code Activity Bar.
+2. Select **Open Repository...**.
 3. Choose a local Git repository folder.
-4. Use `Open Git Client` to launch the full CodeMerge workbench.
+4. Use **Open Git Client** to launch the full CodeMerge workbench.
 
-You can also run:
+You can also run it from the Command Palette:
 
 ```text
 CodeMerge: Open Git Client
 ```
 
-from the Command Palette.
+---
 
-## Branch Menu
+## 🌿 Branch Menu
 
-Right-click a branch in Locations to access:
+Right-click a branch in **Locations** to access:
 
-- Checkout branch
-- Merge branch into the current branch
-- Delete branch
-- Rename branch
-- Copy branch name
-- Hide branch
-- Hide all branches except the selected branch
-- Show all hidden branches
-- Set upstream
-- Search commits by branch name
+- ✅ Checkout branch
+- 🔀 Merge branch into the current branch
+- 🗑️ Delete branch
+- ✏️ Rename branch
+- 📋 Copy branch name
+- 🙈 Hide branch
+- 🫥 Hide all branches except the selected one
+- 👁️ Show all hidden branches
+- 🔗 Set upstream
+- 🔍 Search commits by branch name
 
-## Development
+---
 
-Install dependencies:
+## 🛠️ Development
 
-```powershell
-npm install
-```
+| Task | Command |
+|---|---|
+| Install dependencies | `npm install` |
+| Compile | `npm run compile` |
+| Type checks | `npm run lint` |
+| Package a VSIX | `npm run package` |
 
-Compile:
-
-```powershell
-npm run compile
-```
-
-Run type checks:
-
-```powershell
-npm run lint
-```
-
-Package a VSIX:
-
-```powershell
-npm run package
-```
-
-Debug locally:
+**Debug locally:**
 
 1. Open this folder in VS Code.
 2. Press `F5`.
 3. In the Extension Development Host, open CodeMerge from the Activity Bar.
 
-## Roadmap
+---
 
-- Richer diff rendering with line-level controls.
-- Remote branch grouping and tag/stash providers.
-- Commit detail actions and file-level history.
-- Conflict-aware merge and cherry-pick flows.
-- Optional graph density controls.
+## 🗺️ Roadmap
 
-## Support
+- [ ] Richer diff rendering with line-level controls
+- [ ] Remote branch grouping and tag/stash providers
+- [ ] Commit detail actions and file-level history
+- [ ] Conflict-aware merge and cherry-pick flows
+- [ ] Optional graph density controls
+
+---
+
+## ❤️ Support
 
 If CodeMerge saves you time, you can support development here:
 
-[buymeacoffee.com/andreescocard](https://buymeacoffee.com/andreescocard)
+<a href="https://buymeacoffee.com/andreescocard">
+  <img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-buymeacoffee.com%2Fandreescocard-FFDD00?style=flat-square&logo=buy-me-a-coffee&logoColor=000000" alt="Buy me a coffee">
+</a>
 
-## License
+---
+
+## 📄 License
 
 No license file has been added yet. Add one before publishing publicly if you want to define reuse terms.
