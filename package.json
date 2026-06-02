@@ -1,0 +1,65 @@
+{
+  "name": "codemerge",
+  "displayName": "CodeMerge",
+  "description": "A Sublime Merge-inspired Git client inside VS Code.",
+  "version": "0.1.0",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.92.0"
+  },
+  "categories": [
+    "Source Control",
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:codemerge.open",
+    "onView:codemerge.sidebar"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "codemerge.open",
+        "title": "CodeMerge: Open Git Client"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codemerge",
+          "title": "CodeMerge",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "codemerge": [
+        {
+          "id": "codemerge.sidebar",
+          "name": "Repository",
+          "type": "webview"
+        }
+      ]
+    },
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "codemerge.open"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "tsc --noEmit -p ./",
+    "package": "vsce package --allow-missing-repository"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "@types/vscode": "^1.92.0",
+    "@vscode/vsce": "^3.9.1",
+    "typescript": "^5.8.3"
+  }
+}
