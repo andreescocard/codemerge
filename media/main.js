@@ -7,6 +7,7 @@
     snapshot: undefined
   };
 
+  const toggleLocationsButton = document.getElementById("toggleLocationsButton");
   const branchSelect = document.getElementById("branchSelect");
   const newBranchName = document.getElementById("newBranchName");
   const sourceBranchSelect = document.getElementById("sourceBranchSelect");
@@ -36,14 +37,18 @@
   const summaryDate = document.getElementById("summaryDate");
   const summaryRefs = document.getElementById("summaryRefs");
   const summarySubject = document.getElementById("summarySubject");
-  const fileTab = document.getElementById("fileTab");
   const stageButton = document.getElementById("stageButton");
+  const stageAllButton = document.getElementById("stageAllButton");
   const unstageButton = document.getElementById("unstageButton");
   const discardButton = document.getElementById("discardButton");
+  const discardAllButton = document.getElementById("discardAllButton");
   const commitForm = document.getElementById("commitForm");
   const commitMessage = document.getElementById("commitMessage");
 
   restoreLayout();
+  if (!document.documentElement.classList.contains("locationsCollapsed")) {
+    setLocationsCollapsed(false, false);
+  }
   document.querySelectorAll(".columnResizer").forEach((resizer) => {
     resizer.addEventListener("pointerdown", startColumnResize);
   });
@@ -56,6 +61,7 @@
   });
 
   refreshButton.addEventListener("click", () => post("refresh"));
+  toggleLocationsButton.addEventListener("click", toggleLocations);
   createBranchButton.addEventListener("click", () => {
     const branch = newBranchName.value.trim();
     const sourceBranch = sourceBranchSelect.value;
@@ -78,8 +84,10 @@
   });
 
   stageButton.addEventListener("click", () => selectedAction("stage"));
+  stageAllButton.addEventListener("click", () => post("stageAll"));
   unstageButton.addEventListener("click", () => selectedAction("unstage"));
   discardButton.addEventListener("click", () => selectedAction("discard"));
+  discardAllButton.addEventListener("click", () => post("discardAll"));
 
   commitForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -92,6 +100,10 @@
 
   window.addEventListener("message", (event) => {
     const message = event.data;
+    if (message.type === "loading") {
+      setLoading(Boolean(message.loading));
+    }
+
     if (message.type === "snapshot") {
       state.snapshot = message.snapshot;
       renderSnapshot(message.snapshot);
@@ -100,13 +112,16 @@
     if (message.type === "diff") {
       state.selectedPath = message.path;
       diffTitle.textContent = message.path || "Diff";
-      fileTab.textContent = message.path ? basename(message.path) : "File";
       diffBefore.textContent = message.path ? "Base version\n\n" + trimDiffForPane(message.diff, "before") : "Select a changed file to inspect its diff.";
       diffOutput.textContent = message.diff ? trimDiffForPane(message.diff, "after") : "Select a changed file to inspect its diff.";
       renderFiles(state.snapshot?.files || []);
     }
 
     if (message.type === "error") {
+      setLoading(false);
+      commitSummaryCount.textContent = "Refresh failed";
+      summarySubject.textContent = message.error;
+      diffBefore.textContent = "Refresh failed";
       diffOutput.textContent = message.error;
     }
   });
@@ -119,6 +134,20 @@
     renderBranches(snapshot);
     renderFiles(snapshot.files);
     renderCommits(snapshot.commits);
+  }
+
+  function setLoading(loading) {
+    refreshButton.disabled = loading;
+    if (loading) {
+      setButtonContent(refreshButton, "refresh", "Loading...");
+      commitSummaryCount.textContent = "Loading changes...";
+      return;
+    }
+
+    setButtonContent(refreshButton, "refresh", "Refresh");
+    if (!state.snapshot) {
+      commitSummaryCount.textContent = "No data loaded";
+    }
   }
 
   function renderBranches(snapshot) {
@@ -145,8 +174,8 @@
       const branchRow = document.createElement("button");
       branchRow.className = `branchRow ${branch.current ? "current" : ""}`;
       branchRow.type = "button";
-      branchRow.textContent = branch.name;
       branchRow.title = branch.name;
+      branchRow.append(icon("branch"), textSpan(branch.name, "branchName"));
       branchRow.addEventListener("click", () => {
         if (!branch.current) {
           post("checkout", { branch: branch.name });
@@ -176,7 +205,7 @@
 
     visibleFiles.forEach((file) => {
       const row = document.createElement("button");
-      row.className = `fileRow ${file.path === state.selectedPath ? "selected" : ""}`;
+      row.className = `fileRow detailTab ${file.path === state.selectedPath ? "activeTab selected" : ""}`;
       row.type = "button";
       row.title = `${file.path} (${file.mtimeLabel})`;
       row.addEventListener("click", () => post("selectFile", { path: file.path }));
@@ -193,7 +222,7 @@
       time.className = "fileTime";
       time.textContent = file.mtimeLabel;
 
-      row.append(status, name, time);
+      row.append(status, icon("file"), name, time);
       fileList.append(row);
     });
   }
@@ -245,7 +274,7 @@
 
       const graph = document.createElement("span");
       graph.className = "graph";
-      graph.textContent = commit.graph || "*";
+      graph.append(icon("commit"));
 
       const body = document.createElement("div");
       body.className = "commitBody";
@@ -260,7 +289,7 @@
       const cherryPick = document.createElement("button");
       cherryPick.className = "commitAction";
       cherryPick.type = "button";
-      cherryPick.textContent = "Cherry-pick";
+      cherryPick.append(icon("merge"), textSpan("Cherry-pick"));
       cherryPick.addEventListener("click", (event) => {
         event.stopPropagation();
         post("cherryPick", { hash: commit.hash });
@@ -335,46 +364,56 @@
     const current = state.snapshot?.currentBranch || "current";
     const items = [
       {
+        icon: "branch",
         label: `Checkout ${branch.name}`,
         action: () => post("checkout", { branch: branch.name }),
         disabled: branch.current
       },
       {
+        icon: "merge",
         label: `Merge ${branch.name} into ${current}...`,
         action: () => post("mergeBranch", { branch: branch.name })
       },
       {
+        icon: "trash",
         label: `Delete ${branch.name}`,
         action: () => post("deleteBranch", { branch: branch.name }),
         disabled: branch.current
       },
       {
+        icon: "edit",
         label: `Rename ${branch.name}...`,
         action: () => post("renameBranch", { branch: branch.name })
       },
       {
+        icon: "copy",
         label: `Copy '${branch.name}'`,
         action: () => post("copyBranch", { branch: branch.name })
       },
       {
+        icon: "eye-off",
         label: `Hide ${branch.name}`,
         action: () => hideBranch(branch.name),
         disabled: branch.current
       },
       {
+        icon: "eye-off",
         label: `Hide All Branches Except ${branch.name}`,
         action: () => hideAllBranchesExcept(branch.name)
       },
       {
+        icon: "eye",
         label: "Show All Hidden Branches",
         action: showAllHiddenBranches,
         disabled: state.hiddenBranches.size === 0
       },
       {
+        icon: "link",
         label: "Set Upstream...",
         action: () => post("setUpstream", { branch: branch.name })
       },
       {
+        icon: "search",
         label: "Search...",
         action: () => searchBranch(branch.name)
       }
@@ -383,7 +422,7 @@
     items.forEach((item) => {
       const button = document.createElement("button");
       button.type = "button";
-      button.textContent = item.label;
+      button.append(icon(item.icon), textSpan(item.label));
       button.disabled = Boolean(item.disabled);
       button.addEventListener("click", () => {
         closeBranchMenu();
@@ -453,6 +492,9 @@
     if (persisted.diffLeft) {
       document.documentElement.style.setProperty("--diff-left", `${persisted.diffLeft}%`);
     }
+    if (persisted.locationsCollapsed) {
+      setLocationsCollapsed(true, false);
+    }
   }
 
   function persistLayout(partial) {
@@ -490,6 +532,22 @@
     window.addEventListener("pointerup", done);
   }
 
+  function toggleLocations() {
+    const collapsed = !document.documentElement.classList.contains("locationsCollapsed");
+    setLocationsCollapsed(collapsed, true);
+  }
+
+  function setLocationsCollapsed(collapsed, persist) {
+    document.documentElement.classList.toggle("locationsCollapsed", collapsed);
+    toggleLocationsButton.classList.toggle("active", !collapsed);
+    toggleLocationsButton.title = collapsed ? "Show locations" : "Hide locations";
+    toggleLocationsButton.setAttribute("aria-pressed", String(!collapsed));
+
+    if (persist) {
+      persistLayout({ locationsCollapsed: collapsed });
+    }
+  }
+
   function startDiffResize(event) {
     event.preventDefault();
     diffResizer.setPointerCapture(event.pointerId);
@@ -513,5 +571,27 @@
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
+  }
+
+  function icon(name) {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+    svg.classList.add("icon");
+    use.setAttribute("href", `#icon-${name}`);
+    svg.append(use);
+    return svg;
+  }
+
+  function textSpan(text, className) {
+    const span = document.createElement("span");
+    if (className) {
+      span.className = className;
+    }
+    span.textContent = text;
+    return span;
+  }
+
+  function setButtonContent(button, iconName, label) {
+    button.replaceChildren(icon(iconName), textSpan(label));
   }
 })();
