@@ -36,6 +36,9 @@ type Snapshot = {
 };
 
 const selectedRootKey = "codemerge.selectedRoot";
+const gitTimeoutMs = 20_000;
+const gitNetworkTimeoutMs = 120_000;
+const maxStatusFilesWithMtime = 2_000;
 
 const enum MessageType {
   Refresh = "refresh",
@@ -118,7 +121,7 @@ class GitClient {
   }
 
   async status(): Promise<GitFile[]> {
-    const output = await this.git(["status", "--porcelain=v1"]);
+    const output = await this.git(["status", "--porcelain=v1"], gitTimeoutMs);
     const files = output
       .split(/\r?\n/)
       .filter(Boolean)
@@ -134,23 +137,28 @@ class GitClient {
         };
       });
 
-    const withMtime = await Promise.all(
-      files.map(async (file) => {
+    const filesForMtime = files.slice(0, maxStatusFilesWithMtime);
+    const withMtime = await mapWithConcurrency(filesForMtime, 64, async (file) => {
         const mtimeMs = await this.mtime(file.path);
         return {
           ...file,
           mtimeMs,
           mtimeLabel: formatMtime(mtimeMs)
         };
-      })
-    );
+      });
 
-    return withMtime.sort((a, b) => b.mtimeMs - a.mtimeMs || a.path.localeCompare(b.path));
+    const overflow = files.slice(maxStatusFilesWithMtime).map((file) => ({
+      ...file,
+      mtimeMs: 0,
+      mtimeLabel: "not scanned"
+    }));
+
+    return [...withMtime, ...overflow].sort((a, b) => b.mtimeMs - a.mtimeMs || a.path.localeCompare(b.path));
   }
 
   async diff(filePath: string): Promise<string> {
-    const staged = await this.git(["diff", "--cached", "--", filePath]);
-    const unstaged = await this.git(["diff", "--", filePath]);
+    const staged = await this.git(["diff", "--cached", "--", filePath], gitTimeoutMs);
+    const unstaged = await this.git(["diff", "--", filePath], gitTimeoutMs);
     const chunks = [];
 
     if (staged.trim()) {
@@ -208,22 +216,23 @@ class GitClient {
   }
 
   fetch(): Promise<string> {
-    return this.git(["fetch", "--all", "--prune"]);
+    return this.git(["fetch", "--all", "--prune"], gitNetworkTimeoutMs);
   }
 
   pull(): Promise<string> {
-    return this.git(["pull", "--ff-only"]);
+    return this.git(["pull", "--ff-only"], gitNetworkTimeoutMs);
   }
 
   push(): Promise<string> {
-    return this.git(["push"]);
+    return this.git(["push"], gitNetworkTimeoutMs);
   }
 
-  private git(args: string[]): Promise<string> {
+  private git(args: string[], timeout = gitTimeoutMs): Promise<string> {
     return new Promise((resolve, reject) => {
-      execFile("git", args, { cwd: this.cwd, windowsHide: true }, (error, stdout, stderr) => {
+      execFile("git", args, { cwd: this.cwd, windowsHide: true, timeout, maxBuffer: 20 * 1024 * 1024 }, (error, stdout, stderr) => {
         if (error) {
-          reject(new Error((stderr || stdout || error.message).trim()));
+          const detail = (stderr || stdout || error.message).trim();
+          reject(new Error(error.killed ? `Git command timed out: git ${args.join(" ")}` : detail));
           return;
         }
         resolve(stdout);
@@ -340,6 +349,7 @@ class CodeMergePanel {
   private static currentPanel: CodeMergePanel | undefined;
   private readonly client: GitClient;
   private selectedFile: string | undefined;
+  private refreshRequest = 0;
 
   static createOrShow(extensionUri: vscode.Uri, root: string) {
     if (CodeMergePanel.currentPanel) {
@@ -530,15 +540,32 @@ class CodeMergePanel {
   }
 
   private async refresh(selectedPath = this.selectedFile) {
-    const snapshot = await this.client.snapshot();
-    this.panel.webview.postMessage({ type: "snapshot", snapshot });
+    const request = ++this.refreshRequest;
+    this.panel.webview.postMessage({ type: "loading", loading: true });
 
-    if (selectedPath && snapshot.files.some((file) => file.path === selectedPath)) {
-      this.selectedFile = selectedPath;
-      await this.sendDiff(selectedPath);
-    } else {
-      this.selectedFile = undefined;
-      this.panel.webview.postMessage({ type: "diff", path: undefined, diff: "" });
+    try {
+      const snapshot = await this.client.snapshot();
+      if (request !== this.refreshRequest) {
+        return;
+      }
+
+      this.panel.webview.postMessage({ type: "snapshot", snapshot });
+
+      if (selectedPath && snapshot.files.some((file) => file.path === selectedPath)) {
+        this.selectedFile = selectedPath;
+        await this.sendDiff(selectedPath);
+      } else {
+        this.selectedFile = undefined;
+        this.panel.webview.postMessage({ type: "diff", path: undefined, diff: "" });
+      }
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      vscode.window.showErrorMessage(detail);
+      this.panel.webview.postMessage({ type: "error", error: detail });
+    } finally {
+      if (request === this.refreshRequest) {
+        this.panel.webview.postMessage({ type: "loading", loading: false });
+      }
     }
   }
 
