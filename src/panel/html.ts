@@ -163,22 +163,6 @@ export function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri) {
 
         <div class="changeArea">
           <div id="fileList" class="fileList"></div>
-          <section class="diffPane" hidden>
-            <div class="diffHeader">
-              <h2 id="diffTitle">Diff</h2>
-              <div class="fileActions">
-                <button id="stageButton"><svg><use href="#icon-check"></use></svg>Stage</button>
-                <button id="unstageButton"><svg><use href="#icon-refresh"></use></svg>Unstage</button>
-                <button id="blameButton"><svg><use href="#icon-eye"></use></svg>Blame</button>
-                <button id="discardButton"><svg><use href="#icon-trash"></use></svg>Discard</button>
-              </div>
-            </div>
-            <div class="splitDiff">
-              <div id="diffBefore" class="diffOutput beforePane">Select a changed file to inspect its diff.</div>
-              <div class="diffResizer" id="diffResizer" title="Resize diff panes"></div>
-              <div id="diffOutput" class="diffOutput afterPane">Select a changed file to inspect its diff.</div>
-            </div>
-          </section>
         </div>
 
       </section>
@@ -279,6 +263,57 @@ export function renderSidebarHtml(webview: vscode.Webview) {
       color: var(--vscode-descriptionForeground);
       line-height: 1.35;
     }
+    .recent {
+      display: grid;
+      gap: 8px;
+    }
+    .divider {
+      border: none;
+      border-top: 1px solid var(--vscode-sideBarSectionHeader-border, var(--vscode-panel-border, rgba(128,128,128,0.35)));
+      margin: 4px 0 0;
+    }
+    .recentHead {
+      color: var(--vscode-descriptionForeground);
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      font-weight: 600;
+    }
+    .recentList {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 2px;
+    }
+    .recentItem {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+      min-height: 26px;
+      padding: 4px 6px;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--vscode-foreground);
+      cursor: pointer;
+      font: inherit;
+      text-align: left;
+      justify-content: flex-start;
+    }
+    .recentItem:hover {
+      background: var(--vscode-list-hoverBackground);
+    }
+    .recentItem.active {
+      background: var(--vscode-list-activeSelectionBackground);
+      color: var(--vscode-list-activeSelectionForeground);
+    }
+    .recentItem .name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
@@ -298,7 +333,11 @@ export function renderSidebarHtml(webview: vscode.Webview) {
     <button id="openButton"><svg><use href="#icon-repo"></use></svg>Open Git Client</button>
     <button id="openRepositoryButton" class="secondary"><svg><use href="#icon-folder"></use></svg>Open Repository...</button>
     <button id="refreshButton" class="secondary"><svg><use href="#icon-refresh"></use></svg>Refresh</button>
-    <p class="muted">Use the full CodeMerge panel for the Sublime Merge-style history, files, summary, and split diff layout.</p>
+    <div class="recent" id="recent" hidden>
+      <hr class="divider">
+      <div class="recentHead">Recent Repositories</div>
+      <ul class="recentList" id="recentList"></ul>
+    </div>
   </section>
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
@@ -309,6 +348,37 @@ export function renderSidebarHtml(webview: vscode.Webview) {
     document.getElementById("openButton").addEventListener("click", () => vscode.postMessage({ type: "open" }));
     document.getElementById("openRepositoryButton").addEventListener("click", () => vscode.postMessage({ type: "openRepository" }));
     document.getElementById("refreshButton").addEventListener("click", () => vscode.postMessage({ type: "refresh" }));
+    const recent = document.getElementById("recent");
+    const recentList = document.getElementById("recentList");
+    function renderRecent(entries, active) {
+      recentList.textContent = "";
+      const list = Array.isArray(entries) ? entries : [];
+      if (!list.length) {
+        recent.hidden = true;
+        return;
+      }
+      recent.hidden = false;
+      for (const entry of list) {
+        const li = document.createElement("li");
+        const button = document.createElement("button");
+        button.className = "recentItem" + (entry.path === active ? " active" : "");
+        button.title = entry.path;
+        const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+        use.setAttribute("href", "#icon-repo");
+        icon.appendChild(use);
+        const name = document.createElement("span");
+        name.className = "name";
+        name.textContent = entry.name;
+        button.append(icon, name);
+        button.addEventListener("click", () => {
+          if (entry.path === active) return;
+          vscode.postMessage({ type: "selectRepository", root: entry.path });
+        });
+        li.appendChild(button);
+        recentList.appendChild(li);
+      }
+    }
     window.addEventListener("message", (event) => {
       const state = event.data.state;
       if (!state) return;
@@ -316,6 +386,7 @@ export function renderSidebarHtml(webview: vscode.Webview) {
       branch.textContent = state.branch;
       changed.textContent = String(state.changed);
       commits.textContent = String(state.commits);
+      renderRecent(state.recent, state.active);
     });
   </script>
 </body>

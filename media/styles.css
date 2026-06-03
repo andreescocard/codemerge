@@ -24,7 +24,6 @@
   --selection-fg: var(--vscode-list-activeSelectionForeground, var(--text));
   --locations-width: 198px;
   --commits-width: 320px;
-  --diff-left: 50%;
   --space-xs: 4px;
   --space-sm: 6px;
   --space-md: 10px;
@@ -87,8 +86,6 @@ svg {
 .toolbarAction,
 .paneHeader span,
 .detailTab,
-.fileActions button,
-.commitBox button,
 .commitAction,
 .contextMenu button {
   display: inline-flex;
@@ -196,8 +193,7 @@ textarea:focus {
   background: var(--pane);
 }
 
-.columnResizer,
-.diffResizer {
+.columnResizer {
   background: color-mix(in srgb, var(--line) 80%, transparent);
   cursor: col-resize;
   min-width: 5px;
@@ -205,9 +201,7 @@ textarea:focus {
 }
 
 .columnResizer:hover,
-.columnResizer:focus,
-.diffResizer:hover,
-.diffResizer:focus {
+.columnResizer:focus {
   background: var(--blue);
 }
 
@@ -259,8 +253,7 @@ textarea:focus {
 
 .locationsScroll,
 .commitList,
-.fileList,
-.splitDiff {
+.fileList {
   min-height: 0;
   overflow: auto;
 }
@@ -845,93 +838,6 @@ textarea:focus {
   border-radius: 3px;
 }
 
-.diffPane {
-  min-height: 0;
-  display: grid;
-  grid-template-rows: 28px minmax(0, 1fr);
-  background: var(--surface);
-}
-
-.diffPane[hidden] {
-  display: none;
-}
-
-.diffHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 8px;
-  background: var(--blue-soft);
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-}
-
-.diffHeader h2 {
-  margin: 0;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  font-weight: 400;
-}
-
-.fileActions {
-  display: flex;
-  gap: 4px;
-}
-
-.fileActions button,
-.commitBox button {
-  border-radius: 3px;
-}
-
-#discardButton {
-  color: var(--danger);
-}
-
-.splitDiff {
-  display: grid;
-  grid-template-columns: minmax(180px, var(--diff-left)) 5px minmax(180px, 1fr);
-  background: var(--surface);
-}
-
-.diffOutput {
-  margin: 0;
-  min-width: 0;
-  max-width: 100%;
-  overflow: auto;
-  padding: 12px 14px;
-  border-right: 1px solid var(--line-soft);
-  background: var(--vscode-diffEditor-removedTextBackground, var(--surface));
-  color: var(--vscode-editor-foreground);
-  font-family: var(--vscode-editor-font-family);
-  font-size: var(--vscode-editor-font-size);
-  line-height: 1.45;
-  white-space: pre;
-}
-
-.afterPane {
-  background: var(--vscode-diffEditor-insertedTextBackground, var(--surface));
-}
-
-.beforePane {
-  background: var(--vscode-diffEditor-removedTextBackground, var(--surface));
-}
-
-.diffSummaryLine {
-  display: grid;
-  grid-template-columns: 90px minmax(0, 1fr);
-  gap: 10px;
-  padding: 2px 0;
-  white-space: normal;
-}
-
-.diffSummaryLine span:first-child {
-  color: var(--muted);
-  text-align: right;
-}
-
 .diffSection {
   display: grid;
   gap: 8px;
@@ -1153,14 +1059,11 @@ textarea:focus {
 
   .appToolbar,
   .mergeLayout,
-  .contentPane,
-  .splitDiff,
-  .commitBox {
+  .contentPane {
     grid-template-columns: 1fr;
   }
 
-  .columnResizer,
-  .diffResizer {
+  .columnResizer {
     display: none;
   }
 

@@ -45,10 +45,6 @@
   const fileList = document.getElementById("fileList");
   const commitFilter = document.getElementById("commitFilter");
   const commitList = document.getElementById("commitList");
-  const diffTitle = document.getElementById("diffTitle");
-  const diffBefore = document.getElementById("diffBefore");
-  const diffResizer = document.getElementById("diffResizer");
-  const diffOutput = document.getElementById("diffOutput");
   const summaryHash = document.getElementById("summaryHash");
   const summaryAuthor = document.getElementById("summaryAuthor");
   const summaryDate = document.getElementById("summaryDate");
@@ -56,11 +52,7 @@
   const summarySubject = document.getElementById("summarySubject");
   const conflictBanner = document.getElementById("conflictBanner");
   const summaryMenu = document.querySelector(".summaryMenu");
-  const stageButton = document.getElementById("stageButton");
   const stageAllButton = document.getElementById("stageAllButton");
-  const unstageButton = document.getElementById("unstageButton");
-  const blameButton = document.getElementById("blameButton");
-  const discardButton = document.getElementById("discardButton");
   const discardAllButton = document.getElementById("discardAllButton");
   const commitForm = document.getElementById("commitForm");
   const commitMessage = document.getElementById("commitMessage");
@@ -73,7 +65,6 @@
   document.querySelectorAll(".columnResizer").forEach((resizer) => {
     resizer.addEventListener("pointerdown", startColumnResize);
   });
-  diffResizer.addEventListener("pointerdown", startDiffResize);
   window.addEventListener("click", closeMenus);
   window.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
@@ -134,11 +125,7 @@
     }
   });
 
-  stageButton.addEventListener("click", () => selectedAction("stage"));
   stageAllButton.addEventListener("click", () => post("stageAll"));
-  unstageButton.addEventListener("click", () => selectedAction("unstage"));
-  blameButton.addEventListener("click", () => selectedAction("blame"));
-  discardButton.addEventListener("click", () => selectedAction("discard"));
   discardAllButton.addEventListener("click", () => post("discardAll"));
   summaryMenu.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -195,8 +182,6 @@
       setLoading(false);
       commitSummaryCount.textContent = "Refresh failed";
       summarySubject.textContent = message.error;
-      diffBefore.textContent = "Refresh failed";
-      diffOutput.textContent = message.error;
     }
   });
 
@@ -699,12 +684,6 @@
     }
   }
 
-  function selectedAction(type) {
-    if (state.selectedPath) {
-      post(type, { path: state.selectedPath });
-    }
-  }
-
   function selectCommit(hash, recordHistory) {
     const commit = (state.snapshot?.commits || []).find((candidate) => candidate.hash === hash);
     if (!commit) {
@@ -830,84 +809,6 @@
     return line;
   }
 
-  function renderDiff(message) {
-    if (!message.path) {
-      diffBefore.textContent = "Select a changed file to inspect its diff.";
-      diffOutput.textContent = "Select a changed file to inspect its diff.";
-      return;
-    }
-
-    if (!message.structuredDiff?.length) {
-      diffBefore.textContent = "Base version\n\n" + trimDiffForPane(message.diff, "before");
-      diffOutput.textContent = message.diff ? trimDiffForPane(message.diff, "after") : "No textual diff available for this file.";
-      return;
-    }
-
-    const hunkCount = message.structuredDiff.reduce(
-      (count, section) => count + section.files.reduce((fileCount, file) => fileCount + file.hunks.length, 0),
-      0
-    );
-    diffBefore.replaceChildren(
-      diffSummaryLine("File", message.path),
-      diffSummaryLine("Sections", message.structuredDiff.map((section) => section.title).join(", ")),
-      diffSummaryLine("Hunks", String(hunkCount))
-    );
-
-    diffOutput.innerHTML = "";
-    message.structuredDiff.forEach((section) => {
-      let sectionHunkIndex = 0;
-      const sectionElement = document.createElement("section");
-      sectionElement.className = "diffSection";
-      sectionElement.append(textBlock(section.title, "diffSectionTitle"));
-
-      section.files.forEach((file) => {
-        sectionElement.append(textBlock(`${file.oldPath || "/dev/null"} -> ${file.newPath || "/dev/null"}`, "diffFileTitle"));
-        file.hunks.forEach((hunk) => {
-          const actionIndex = sectionHunkIndex;
-          sectionHunkIndex += 1;
-          sectionElement.append(renderHunk(section.kind, actionIndex, hunk));
-        });
-      });
-
-      diffOutput.append(sectionElement);
-    });
-  }
-
-  function renderBlame(filePath, blame) {
-    diffBefore.replaceChildren(
-      diffSummaryLine("File", filePath),
-      diffSummaryLine("Lines", String(blame.length))
-    );
-    diffOutput.innerHTML = "";
-
-    if (!blame.length) {
-      diffOutput.append(empty("No blame data available"));
-      return;
-    }
-
-    const view = document.createElement("section");
-    view.className = "blameView";
-    blame.forEach((line) => {
-      const row = document.createElement("button");
-      row.type = "button";
-      row.className = "blameRow";
-      row.title = `${line.hash} ${line.summary}`;
-      row.addEventListener("click", () => {
-        commitFilter.value = line.shortHash;
-        renderCommits(state.snapshot?.commits || []);
-      });
-      row.append(
-        textSpan(String(line.line), "blameLineNo"),
-        textSpan(line.shortHash, "blameHash"),
-        textSpan(line.author || "-", "blameAuthor"),
-        textSpan(line.summary || "-", "blameSummary"),
-        textSpan(line.text, "blameText")
-      );
-      view.append(row);
-    });
-    diffOutput.append(view);
-  }
-
   function renderHunk(kind, hunkIndex, hunk, filePath) {
     const path = filePath || state.selectedPath;
     const hunkElement = document.createElement("section");
@@ -991,13 +892,6 @@
       : selectedAction.textContent.replace(/Selected.*$/, `Selected (${count})`);
   }
 
-  function diffSummaryLine(label, value) {
-    const row = document.createElement("div");
-    row.className = "diffSummaryLine";
-    row.append(textSpan(label), textSpan(value));
-    return row;
-  }
-
   function textBlock(text, className) {
     const element = document.createElement("div");
     element.className = className;
@@ -1020,21 +914,6 @@
 
   function isConflictMarker(text) {
     return text.startsWith("<<<<<<<") || text.startsWith("=======") || text.startsWith(">>>>>>>");
-  }
-
-  function trimDiffForPane(diff, side) {
-    if (!diff) {
-      return "No textual diff available for this file.";
-    }
-
-    const lines = diff.split("\n");
-    const filtered = lines.filter((line) => {
-      if (line.startsWith("+++") || line.startsWith("---") || line.startsWith("@@") || line.startsWith("diff --git")) {
-        return true;
-      }
-      return side === "before" ? !line.startsWith("+") : !line.startsWith("-");
-    });
-    return filtered.join("\n");
   }
 
   function empty(text) {
@@ -1236,9 +1115,6 @@
     if (persisted.commitsWidth) {
       document.documentElement.style.setProperty("--commits-width", `${persisted.commitsWidth}px`);
     }
-    if (persisted.diffLeft) {
-      document.documentElement.style.setProperty("--diff-left", `${persisted.diffLeft}%`);
-    }
     if (persisted.locationsCollapsed) {
       setLocationsCollapsed(true, false);
     }
@@ -1293,27 +1169,6 @@
     if (persist) {
       persistLayout({ locationsCollapsed: collapsed });
     }
-  }
-
-  function startDiffResize(event) {
-    event.preventDefault();
-    diffResizer.setPointerCapture(event.pointerId);
-    const rect = diffResizer.parentElement.getBoundingClientRect();
-
-    function move(moveEvent) {
-      const percent = clamp(((moveEvent.clientX - rect.left) / rect.width) * 100, 25, 75);
-      document.documentElement.style.setProperty("--diff-left", `${percent}%`);
-      persistLayout({ diffLeft: percent });
-    }
-
-    function done(doneEvent) {
-      diffResizer.releasePointerCapture(doneEvent.pointerId);
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", done);
-    }
-
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", done);
   }
 
   function clamp(value, min, max) {
