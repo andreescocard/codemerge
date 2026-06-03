@@ -1,5 +1,6 @@
 import type { BlameLine, Branch, Commit, ConflictFile, GitFile, Remote, Stash, Submodule, Tag } from "./types";
 import { formatMtime } from "../utils/format";
+import { assignCommitGraph } from "./graph";
 
 export type StatusEntry = Omit<GitFile, "mtimeMs" | "mtimeLabel">;
 
@@ -14,17 +15,19 @@ export function parseBranches(output: string): Branch[] {
 }
 
 export function parseCommits(output: string): Commit[] {
-  return output
+  const commits = output
     .split(/\r?\n/)
     .filter(Boolean)
     .map((line) => {
       const match = line.match(/^([*|\\/ _.-]+)?([a-f0-9]{40}\x1f.*)$/i);
       const graph = match?.[1]?.trimEnd() || "";
       const payload = match?.[2] || line;
-      const [hash, shortHash, refs, subject, author, relativeDate] = payload.split("\x1f");
-      return { hash, shortHash, refs, subject, author, relativeDate, graph };
+      const [hash, shortHash, parents = "", refs = "", subject = "", author = "", relativeDate = ""] = payload.split("\x1f");
+      return { hash, shortHash, parents: parents.split(" ").filter(Boolean), refs, subject, author, relativeDate, graph };
     })
     .filter((commit) => commit.hash && commit.shortHash);
+
+  return assignCommitGraph(commits);
 }
 
 export function parseStatus(output: string): StatusEntry[] {

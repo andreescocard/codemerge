@@ -85,6 +85,26 @@ describe("GitClient", () => {
     expect(blame[0]).toMatchObject({ author: "CodeMerge Tests" });
   });
 
+  it("rebases the current branch onto another branch", async () => {
+    await git(["checkout", "-b", "rebase-topic"]);
+    await writeFile(path.join(repo, "topic.txt"), "topic\n", "utf8");
+    await client.stage("topic.txt");
+    await client.commit("topic change");
+
+    await git(["checkout", "main"]);
+    await writeFile(path.join(repo, "main-side.txt"), "main\n", "utf8");
+    await client.stage("main-side.txt");
+    await client.commit("main side change");
+
+    await git(["checkout", "rebase-topic"]);
+    await client.rebaseBranch("main");
+    expect((await client.commits())[0]).toMatchObject({ subject: "topic change" });
+    expect(await gitOutput(["merge-base", "HEAD", "main"])).toBe((await gitOutput(["rev-parse", "main"])).trim() + "\n");
+
+    await git(["checkout", "main"]);
+    await git(["branch", "-D", "rebase-topic"]);
+  });
+
   it("detects and resolves merge conflicts", async () => {
     await writeFile(path.join(repo, "conflict.txt"), "base\n", "utf8");
     await client.stage("conflict.txt");

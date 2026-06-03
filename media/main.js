@@ -4,6 +4,8 @@
     selectedPath: undefined,
     selectedCommit: undefined,
     hiddenBranches: new Set(vscode.getState()?.hiddenBranches || []),
+    expandedPaths: new Set(),
+    diffCache: {},
     snapshot: undefined
   };
 
@@ -13,6 +15,11 @@
   const sourceBranchSelect = document.getElementById("sourceBranchSelect");
   const createBranchButton = document.getElementById("createBranchButton");
   const refreshButton = document.getElementById("refreshButton");
+  const backButton = document.getElementById("backButton");
+  const forwardButton = document.getElementById("forwardButton");
+  const historyMenuButton = document.getElementById("historyMenuButton");
+  const searchButton = document.getElementById("searchButton");
+  const locationSearchButton = document.getElementById("locationSearchButton");
   const fetchButton = document.getElementById("fetchButton");
   const pullButton = document.getElementById("pullButton");
   const pushButton = document.getElementById("pushButton");
@@ -48,6 +55,7 @@
   const summaryRefs = document.getElementById("summaryRefs");
   const summarySubject = document.getElementById("summarySubject");
   const conflictBanner = document.getElementById("conflictBanner");
+  const summaryMenu = document.querySelector(".summaryMenu");
   const stageButton = document.getElementById("stageButton");
   const stageAllButton = document.getElementById("stageAllButton");
   const unstageButton = document.getElementById("unstageButton");
@@ -75,6 +83,19 @@
 
   refreshButton.addEventListener("click", () => post("refresh"));
   toggleLocationsButton.addEventListener("click", toggleLocations);
+  backButton.addEventListener("click", () => navigateCommitHistory(-1));
+  forwardButton.addEventListener("click", () => navigateCommitHistory(1));
+  historyMenuButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const rect = event.currentTarget.getBoundingClientRect();
+    openLocationMenu({ clientX: rect.left, clientY: rect.bottom + 4 }, [
+      { icon: "search", label: "Focus commit search", action: focusCommitSearch },
+      { icon: "eye", label: "Show all hidden branches", action: showAllHiddenBranches, disabled: state.hiddenBranches.size === 0 },
+      { icon: "refresh", label: "Refresh", action: () => post("refresh") }
+    ]);
+  });
+  searchButton.addEventListener("click", focusCommitSearch);
+  locationSearchButton.addEventListener("click", focusLocationSearch);
   createBranchButton.addEventListener("click", () => {
     const branch = newBranchName.value.trim();
     const sourceBranch = sourceBranchSelect.value;
@@ -119,6 +140,16 @@
   blameButton.addEventListener("click", () => selectedAction("blame"));
   discardButton.addEventListener("click", () => selectedAction("discard"));
   discardAllButton.addEventListener("click", () => post("discardAll"));
+  summaryMenu.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const rect = event.currentTarget.getBoundingClientRect();
+    openLocationMenu({ clientX: rect.left, clientY: rect.bottom + 4 }, [
+      { icon: "check", label: "Stage all changes", action: () => post("stageAll") },
+      { icon: "trash", label: "Discard all unstaged changes", action: () => post("discardAll") },
+      { icon: "file", label: "Stash changes...", action: () => post("stashPush", { includeUntracked: false }) },
+      { icon: "commit", label: "Create tag...", action: () => post("createTag") }
+    ]);
+  });
 
   commitForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -139,19 +170,24 @@
     if (message.type === "snapshot") {
       state.snapshot = message.snapshot;
       renderSnapshot(message.snapshot);
+      updateHistoryButtons();
     }
 
     if (message.type === "diff") {
       state.selectedPath = message.path;
-      diffTitle.textContent = message.path || "Diff";
-      renderDiff(message);
+      if (message.path) {
+        state.diffCache[message.path] = message;
+        state.expandedPaths.add(message.path);
+      }
       renderFiles(state.snapshot?.files || []);
     }
 
     if (message.type === "blame") {
       state.selectedPath = message.path;
-      diffTitle.textContent = `Blame: ${message.path}`;
-      renderBlame(message.path, message.blame || []);
+      if (message.path) {
+        state.diffCache[message.path] = { kind: "blame", blame: message.blame || [], path: message.path };
+        state.expandedPaths.add(message.path);
+      }
       renderFiles(state.snapshot?.files || []);
     }
 
@@ -165,6 +201,7 @@
   });
 
   function renderSnapshot(snapshot) {
+    state.diffCache = {};
     repoRoot.textContent = snapshot.root;
     currentBranch.textContent = snapshot.currentBranch;
     changeCount.textContent = String(snapshot.files.length);
@@ -209,6 +246,13 @@
     resume.append(icon("check"), textSpan("Continue"));
     resume.addEventListener("click", () => post("continueOperation"));
     actions.append(abort, resume);
+    if (mergeState.operation === "rebase" || mergeState.operation === "cherryPick") {
+      const skip = document.createElement("button");
+      skip.type = "button";
+      skip.append(icon("arrow-right"), textSpan("Skip"));
+      skip.addEventListener("click", () => post("skipOperation"));
+      actions.append(skip);
+    }
     header.append(actions);
     conflictBanner.append(header);
 
@@ -405,11 +449,18 @@
     }
 
     visibleFiles.forEach((file) => {
-      const row = document.createElement("button");
-      row.className = `fileRow detailTab ${file.path === state.selectedPath ? "activeTab selected" : ""}`;
-      row.type = "button";
-      row.title = `${file.path} (${file.mtimeLabel})`;
-      row.addEventListener("click", () => post("selectFile", { path: file.path }));
+      const expanded = state.expandedPaths.has(file.path);
+      const item = document.createElement("div");
+      item.className = "fileItem";
+
+      const header = document.createElement("button");
+      header.type = "button";
+      header.className = `fileRow ${expanded ? "expanded" : ""} ${file.path === state.selectedPath ? "selected" : ""}`;
+      header.title = `${file.path} (${file.mtimeLabel})`;
+      header.setAttribute("aria-expanded", String(expanded));
+      header.addEventListener("click", () => toggleFileExpand(file.path));
+
+      const chevron = textSpan(expanded ? "▾" : "▸", "fileChevron");
 
       const status = document.createElement("span");
       status.className = `statusBadge ${file.staged ? "staged" : ""}`;
@@ -419,12 +470,120 @@
       name.className = "filePath";
       name.textContent = file.path;
 
-      const time = document.createElement("span");
-      time.className = "fileTime";
-      time.textContent = file.mtimeLabel;
+      const actions = document.createElement("span");
+      actions.className = "fileRowActions";
+      actions.append(
+        fileActionButton(file.staged ? "refresh" : "check", file.staged ? "Unstage" : "Stage", () =>
+          post(file.staged ? "unstage" : "stage", { path: file.path })
+        ),
+        fileActionButton("eye", "Blame", () => post("blame", { path: file.path })),
+        fileActionButton("trash", "Discard", () => post("discard", { path: file.path }), true)
+      );
 
-      row.append(status, icon("file"), name, time);
-      fileList.append(row);
+      header.append(chevron, status, icon("file"), name, actions);
+      item.append(header);
+
+      if (expanded) {
+        const body = document.createElement("div");
+        body.className = "fileDiffBody";
+        const cached = state.diffCache[file.path];
+        if (cached) {
+          renderInlineDiff(body, cached, file.path);
+        } else {
+          body.append(empty("Loading diff..."));
+          post("selectFile", { path: file.path });
+        }
+        item.append(body);
+      }
+
+      fileList.append(item);
+    });
+  }
+
+  function toggleFileExpand(path) {
+    state.selectedPath = path;
+    if (state.expandedPaths.has(path)) {
+      state.expandedPaths.delete(path);
+    } else {
+      state.expandedPaths.add(path);
+      if (!state.diffCache[path]) {
+        post("selectFile", { path });
+      }
+    }
+    renderFiles(state.snapshot?.files || []);
+  }
+
+  function fileActionButton(iconName, label, onClick, danger) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `fileRowAction ${danger ? "danger" : ""}`;
+    button.title = label;
+    button.setAttribute("aria-label", label);
+    button.append(icon(iconName));
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      onClick();
+    });
+    return button;
+  }
+
+  function renderInlineDiff(container, message, filePath) {
+    container.innerHTML = "";
+    if (message.kind === "blame") {
+      renderInlineBlame(container, message.blame || []);
+      return;
+    }
+    if (!message.structuredDiff?.length) {
+      container.append(textBlock(message.diff || "No textual diff available for this file.", "diffInlineRaw"));
+      return;
+    }
+    appendStructuredDiff(container, message.structuredDiff, filePath);
+  }
+
+  function renderInlineBlame(container, blame) {
+    if (!blame.length) {
+      container.append(empty("No blame data available"));
+      return;
+    }
+    const view = document.createElement("section");
+    view.className = "blameView";
+    blame.forEach((line) => {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "blameRow";
+      row.title = `${line.hash} ${line.summary}`;
+      row.addEventListener("click", () => {
+        commitFilter.value = line.shortHash;
+        renderCommits(state.snapshot?.commits || []);
+      });
+      row.append(
+        textSpan(String(line.line), "blameLineNo"),
+        textSpan(line.shortHash, "blameHash"),
+        textSpan(line.author || "-", "blameAuthor"),
+        textSpan(line.summary || "-", "blameSummary"),
+        textSpan(line.text, "blameText")
+      );
+      view.append(row);
+    });
+    container.append(view);
+  }
+
+  function appendStructuredDiff(container, structuredDiff, filePath) {
+    structuredDiff.forEach((section) => {
+      let sectionHunkIndex = 0;
+      const sectionElement = document.createElement("section");
+      sectionElement.className = "diffSection";
+      sectionElement.append(textBlock(section.title, "diffSectionTitle"));
+
+      section.files.forEach((file) => {
+        sectionElement.append(textBlock(`${file.oldPath || "/dev/null"} -> ${file.newPath || "/dev/null"}`, "diffFileTitle"));
+        file.hunks.forEach((hunk) => {
+          sectionElement.append(renderHunk(section.kind, sectionHunkIndex, hunk, filePath));
+          sectionHunkIndex += 1;
+        });
+      });
+
+      container.append(sectionElement);
     });
   }
 
@@ -472,19 +631,17 @@
       row.setAttribute("role", "button");
       row.setAttribute("aria-pressed", String(isSelected));
       row.setAttribute("aria-label", `Commit ${commit.shortHash}: ${commit.subject}`);
-      const selectCommit = () => {
-        state.selectedCommit = commit.hash;
-        renderSummary(commit);
-        renderCommits(state.snapshot?.commits || []);
+      const activateCommit = () => {
+        selectCommit(commit.hash, true);
       };
-      row.addEventListener("click", selectCommit);
+      row.addEventListener("click", activateCommit);
       row.addEventListener("keydown", (event) => {
         if (event.target !== row) {
           return;
         }
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          selectCommit();
+          activateCommit();
         }
       });
       row.addEventListener("contextmenu", (event) => {
@@ -492,9 +649,7 @@
         openCommitMenu(event, commit);
       });
 
-      const graph = document.createElement("span");
-      graph.className = "graph";
-      graph.append(icon("commit"));
+      const graph = renderCommitGraph(commit);
 
       const body = document.createElement("div");
       body.className = "commitBody";
@@ -541,6 +696,66 @@
     }
   }
 
+  function selectCommit(hash, recordHistory) {
+    const commit = (state.snapshot?.commits || []).find((candidate) => candidate.hash === hash);
+    if (!commit) {
+      return;
+    }
+
+    if (recordHistory && state.selectedCommit && state.selectedCommit !== hash) {
+      const history = vscode.getState()?.commitHistory || { back: [], forward: [] };
+      vscode.setState({
+        ...(vscode.getState() || {}),
+        commitHistory: {
+          back: [...history.back, state.selectedCommit].slice(-50),
+          forward: []
+        }
+      });
+    }
+
+    state.selectedCommit = hash;
+    renderSummary(commit);
+    renderCommits(state.snapshot?.commits || []);
+    updateHistoryButtons();
+  }
+
+  function navigateCommitHistory(direction) {
+    const history = vscode.getState()?.commitHistory || { back: [], forward: [] };
+    const source = direction < 0 ? history.back : history.forward;
+    const target = source.at(-1);
+    if (!target || !state.selectedCommit) {
+      return;
+    }
+
+    const nextHistory = direction < 0
+      ? {
+          back: history.back.slice(0, -1),
+          forward: [state.selectedCommit, ...history.forward].slice(0, 50)
+        }
+      : {
+          back: [...history.back, state.selectedCommit].slice(-50),
+          forward: history.forward.slice(1)
+        };
+    vscode.setState({ ...(vscode.getState() || {}), commitHistory: nextHistory });
+    selectCommit(target, false);
+  }
+
+  function updateHistoryButtons() {
+    const history = vscode.getState()?.commitHistory || { back: [], forward: [] };
+    backButton.disabled = !history.back.length;
+    forwardButton.disabled = !history.forward.length;
+  }
+
+  function focusCommitSearch() {
+    commitFilter.focus();
+    commitFilter.select();
+  }
+
+  function focusLocationSearch() {
+    fileFilter.focus();
+    fileFilter.select();
+  }
+
   function renderSummary(commit) {
     summaryHash.textContent = commit.hash;
     summaryAuthor.textContent = commit.author || "-";
@@ -557,6 +772,53 @@
       { icon: "trash", label: `Hard reset to ${commit.shortHash}`, action: () => post("reset", { hash: commit.hash, mode: "hard" }) },
       { icon: "copy", label: `Copy '${commit.hash}'`, action: () => navigator.clipboard?.writeText(commit.hash) }
     ]);
+  }
+
+  function renderCommitGraph(commit) {
+    const laneGap = 12;
+    const lanes = Math.max(1, Math.min(6, commit.lanes || 1));
+    const width = lanes * laneGap + 12;
+    const height = 40;
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.classList.add("graph");
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    svg.setAttribute("width", String(width));
+    svg.setAttribute("height", String(height));
+    svg.setAttribute("aria-hidden", "true");
+
+    for (let lane = 0; lane < lanes; lane += 1) {
+      svg.append(graphLine(xForLane(lane), 0, xForLane(lane), height, "graphRail"));
+    }
+
+    (commit.edges || []).forEach((edge) => {
+      const from = Math.min(edge.fromLane, lanes - 1);
+      const to = Math.min(edge.toLane, lanes - 1);
+      if (from !== to) {
+        svg.append(graphLine(xForLane(from), 15, xForLane(to), height, "graphEdge"));
+      }
+    });
+
+    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    dot.classList.add("graphDot");
+    dot.setAttribute("cx", String(xForLane(Math.min(commit.lane || 0, lanes - 1))));
+    dot.setAttribute("cy", "15");
+    dot.setAttribute("r", "4");
+    svg.append(dot);
+    return svg;
+
+    function xForLane(lane) {
+      return 6 + lane * laneGap;
+    }
+  }
+
+  function graphLine(x1, y1, x2, y2, className) {
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.classList.add(className);
+    line.setAttribute("x1", String(x1));
+    line.setAttribute("y1", String(y1));
+    line.setAttribute("x2", String(x2));
+    line.setAttribute("y2", String(y2));
+    return line;
   }
 
   function renderDiff(message) {
@@ -637,7 +899,8 @@
     diffOutput.append(view);
   }
 
-  function renderHunk(kind, hunkIndex, hunk) {
+  function renderHunk(kind, hunkIndex, hunk, filePath) {
+    const path = filePath || state.selectedPath;
     const hunkElement = document.createElement("section");
     hunkElement.className = "diffHunk";
     const selectedLines = new Set();
@@ -654,9 +917,9 @@
     selectedAction.disabled = true;
     selectedAction.append(icon(kind === "staged" ? "refresh" : "check"), textSpan(kind === "staged" ? "Unstage Selected" : "Stage Selected"));
     selectedAction.addEventListener("click", () => {
-      if (state.selectedPath && selectedLines.size) {
+      if (path && selectedLines.size) {
         post(kind === "staged" ? "unstageLines" : "stageLines", {
-          path: state.selectedPath,
+          path,
           hunkIndex,
           lineIndexes: [...selectedLines].sort((a, b) => a - b)
         });
@@ -667,8 +930,8 @@
     action.type = "button";
     action.append(icon(kind === "staged" ? "refresh" : "check"), textSpan(kind === "staged" ? "Unstage Hunk" : "Stage Hunk"));
     action.addEventListener("click", () => {
-      if (state.selectedPath) {
-        post(kind === "staged" ? "unstageHunk" : "stageHunk", { path: state.selectedPath, hunkIndex });
+      if (path) {
+        post(kind === "staged" ? "unstageHunk" : "stageHunk", { path, hunkIndex });
       }
     });
     actions.append(selectedAction, action);
@@ -808,6 +1071,12 @@
         icon: "merge",
         label: `Merge ${branch.name} into ${current}...`,
         action: () => post("mergeBranch", { branch: branch.name })
+      },
+      {
+        icon: "refresh",
+        label: `Rebase ${current} onto ${branch.name}...`,
+        action: () => post("rebaseBranch", { branch: branch.name }),
+        disabled: branch.current
       },
       {
         icon: "trash",

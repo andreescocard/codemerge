@@ -54,10 +54,10 @@ export class GitClient {
   }
 
   async commits(): Promise<Commit[]> {
-    const format = "%H%x1f%h%x1f%D%x1f%s%x1f%an%x1f%cr";
+    const format = "%H%x1f%h%x1f%P%x1f%D%x1f%s%x1f%an%x1f%cr";
     const output = await this.git([
       "log",
-      "--graph",
+      "--topo-order",
       "--decorate=short",
       "--date=relative",
       `--pretty=format:${format}`,
@@ -279,6 +279,10 @@ export class GitClient {
     return this.git(["merge", branch]);
   }
 
+  rebaseBranch(branch: string): Promise<string> {
+    return this.git(["rebase", branch]);
+  }
+
   deleteBranch(branch: string): Promise<string> {
     return this.git(["branch", "-d", branch]);
   }
@@ -334,6 +338,18 @@ export class GitClient {
         return this.git(["rebase", "--continue"]);
       default:
         throw new Error("No merge, cherry-pick, or rebase operation is active.");
+    }
+  }
+
+  async skipOperation(): Promise<string> {
+    const state = await this.mergeState();
+    switch (state.operation) {
+      case "cherryPick":
+        return this.git(["cherry-pick", "--skip"]);
+      case "rebase":
+        return this.git(["rebase", "--skip"]);
+      default:
+        throw new Error("Skip is only available during cherry-pick or rebase operations.");
     }
   }
 

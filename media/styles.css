@@ -177,7 +177,7 @@ textarea:focus {
 }
 
 .locationsCollapsed .mergeLayout {
-  grid-template-columns: 0 0 minmax(220px, var(--commits-width)) 5px minmax(360px, 1fr);
+  grid-template-columns: minmax(220px, var(--commits-width)) 5px minmax(360px, 1fr);
 }
 
 .locationsCollapsed .locationsPane,
@@ -388,26 +388,12 @@ textarea:focus {
 .commitRow {
   position: relative;
   display: grid;
-  grid-template-columns: 24px minmax(0, 1fr);
+  grid-template-columns: 84px minmax(0, 1fr);
   gap: 5px;
   min-height: 54px;
   padding: 7px 10px 6px 10px;
   border-bottom: 1px solid var(--line-soft);
   background: var(--surface);
-}
-
-.commitRow::before {
-  content: "";
-  position: absolute;
-  left: 10px;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--blue);
-}
-
-.commitRow:nth-child(3n)::before {
-  background: var(--purple);
 }
 
 .commitRow:hover,
@@ -422,22 +408,26 @@ textarea:focus {
 }
 
 .graph {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 10px;
-  height: 10px;
-  margin-top: 8px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--blue) 18%, transparent);
-  color: var(--blue);
+  align-self: stretch;
+  width: 100%;
+  min-width: 54px;
+  height: 40px;
+  overflow: visible;
 }
 
-.graph svg {
-  width: 12px;
-  height: 12px;
+.graphRail {
+  stroke: color-mix(in srgb, var(--blue) 45%, transparent);
+  stroke-width: 2;
+}
+
+.graphEdge {
+  stroke: var(--purple);
+  stroke-width: 2;
+}
+
+.graphDot {
+  fill: var(--surface);
+  stroke: var(--blue);
   stroke-width: 2.4;
 }
 
@@ -469,7 +459,7 @@ textarea:focus {
 }
 
 .refs {
-  color: #3f78b7;
+  color: var(--blue);
   font-style: normal;
 }
 
@@ -513,32 +503,99 @@ textarea:focus {
   background: var(--pane);
 }
 
+.changeArea {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  background: var(--surface);
+}
+
 .fileList {
   display: flex;
+  flex-direction: column;
   align-items: stretch;
-  min-width: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
+  min-height: 0;
+  overflow: auto;
+}
+
+.fileItem {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .fileRow {
-  min-width: 160px;
-  max-width: 260px;
-  height: 28px;
+  width: 100%;
+  min-height: 26px;
   display: grid;
-  grid-template-columns: 24px 14px minmax(0, 1fr);
+  grid-template-columns: 14px 26px 14px minmax(0, 1fr) auto;
   align-items: center;
   gap: 6px;
+  padding: 0 8px;
   border: 0;
-  border-right: 1px solid var(--line);
   background: var(--pane);
+  color: var(--muted);
   text-align: left;
 }
 
 .fileRow.selected,
+.fileRow.expanded,
 .fileRow:hover {
   background: var(--blue-soft);
   color: var(--selection-fg);
+}
+
+.fileChevron {
+  width: 14px;
+  text-align: center;
+  color: var(--muted);
+  user-select: none;
+}
+
+.fileRowActions {
+  display: inline-flex;
+  gap: 2px;
+  opacity: 0;
+}
+
+.fileRow:hover .fileRowActions,
+.fileRow.expanded .fileRowActions {
+  opacity: 1;
+}
+
+.fileRowAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+}
+
+.fileRowAction:hover {
+  border-color: var(--blue);
+}
+
+.fileRowAction.danger {
+  color: var(--danger);
+}
+
+.fileDiffBody {
+  padding: 6px 8px 10px;
+  background: var(--surface);
+  border-top: 1px solid var(--line-soft);
+  overflow-x: auto;
+}
+
+.diffInlineRaw {
+  font-family: var(--vscode-editor-font-family);
+  font-size: var(--vscode-editor-font-size);
+  white-space: pre;
+  color: var(--muted);
 }
 
 .statusBadge {
@@ -549,7 +606,7 @@ textarea:focus {
   height: 16px;
   border-radius: 2px;
   background: var(--pane-alt);
-  color: #bc4d4d;
+  color: var(--danger);
   font-size: 10px;
   font-weight: 700;
 }
@@ -750,6 +807,10 @@ textarea:focus {
   display: grid;
   grid-template-rows: 28px minmax(0, 1fr);
   background: var(--surface);
+}
+
+.diffPane[hidden] {
+  display: none;
 }
 
 .diffHeader {

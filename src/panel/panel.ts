@@ -167,6 +167,21 @@ export class CodeMergePanel {
             }
           }
           break;
+        case MessageType.RebaseBranch:
+          if (message.branch) {
+            const branch = message.branch;
+            const current = await this.client.currentBranch();
+            const confirm = await vscode.window.showWarningMessage(
+              `Rebase ${current} onto ${branch}?`,
+              { modal: true },
+              "Rebase"
+            );
+            if (confirm === "Rebase") {
+              await this.runConflictAwareOperation(() => this.client.rebaseBranch(branch));
+              await this.refresh();
+            }
+          }
+          break;
         case MessageType.DeleteBranch:
           if (message.branch) {
             const confirm = await vscode.window.showWarningMessage(
@@ -258,6 +273,10 @@ export class CodeMergePanel {
         }
         case MessageType.ContinueOperation:
           await this.client.continueOperation();
+          await this.refresh();
+          break;
+        case MessageType.SkipOperation:
+          await this.client.skipOperation();
           await this.refresh();
           break;
         case MessageType.Blame:

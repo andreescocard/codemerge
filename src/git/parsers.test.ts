@@ -28,16 +28,20 @@ describe("git parsers", () => {
   });
 
   it("parses graph-prefixed commit rows", () => {
-    const line = "* 0123456789abcdef0123456789abcdef01234567\x1f0123456\x1fHEAD -> main\x1fInitial commit\x1fAda\x1f2 minutes ago";
+    const line = "0123456789abcdef0123456789abcdef01234567\x1f0123456\x1f\x1fHEAD -> main\x1fInitial commit\x1fAda\x1f2 minutes ago";
     expect(parseCommits(`${line}\n`)).toEqual([
       {
         hash: "0123456789abcdef0123456789abcdef01234567",
         shortHash: "0123456",
+        parents: [],
         refs: "HEAD -> main",
         subject: "Initial commit",
         author: "Ada",
         relativeDate: "2 minutes ago",
-        graph: "*"
+        graph: "",
+        lane: 0,
+        lanes: 1,
+        edges: []
       }
     ]);
   });

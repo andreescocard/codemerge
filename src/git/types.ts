@@ -10,11 +10,20 @@ export type GitFile = {
 export type Commit = {
   hash: string;
   shortHash: string;
+  parents: string[];
   refs: string;
   subject: string;
   author: string;
   relativeDate: string;
   graph: string;
+  lane: number;
+  lanes: number;
+  edges: CommitGraphEdge[];
+};
+
+export type CommitGraphEdge = {
+  fromLane: number;
+  toLane: number;
 };
 
 export type Branch = {

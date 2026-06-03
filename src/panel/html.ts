@@ -107,7 +107,6 @@ export function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri) {
       <section class="contentPane">
         <div class="detailTabs">
           <button class="detailTab activeTab" id="summaryTab"><svg><use href="#icon-commit"></use></svg>Summary</button>
-          <div id="fileList" class="fileList"></div>
         </div>
 
         <section class="summaryPane">
@@ -149,22 +148,25 @@ export function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri) {
           </div>
         </section>
 
-        <section class="diffPane">
-          <div class="diffHeader">
-            <h2 id="diffTitle">Diff</h2>
-            <div class="fileActions">
-              <button id="stageButton"><svg><use href="#icon-check"></use></svg>Stage</button>
-              <button id="unstageButton"><svg><use href="#icon-refresh"></use></svg>Unstage</button>
-              <button id="blameButton"><svg><use href="#icon-eye"></use></svg>Blame</button>
-              <button id="discardButton"><svg><use href="#icon-trash"></use></svg>Discard</button>
+        <div class="changeArea">
+          <div id="fileList" class="fileList"></div>
+          <section class="diffPane" hidden>
+            <div class="diffHeader">
+              <h2 id="diffTitle">Diff</h2>
+              <div class="fileActions">
+                <button id="stageButton"><svg><use href="#icon-check"></use></svg>Stage</button>
+                <button id="unstageButton"><svg><use href="#icon-refresh"></use></svg>Unstage</button>
+                <button id="blameButton"><svg><use href="#icon-eye"></use></svg>Blame</button>
+                <button id="discardButton"><svg><use href="#icon-trash"></use></svg>Discard</button>
+              </div>
             </div>
-          </div>
-          <div class="splitDiff">
-            <div id="diffBefore" class="diffOutput beforePane">Select a changed file to inspect its diff.</div>
-            <div class="diffResizer" id="diffResizer" title="Resize diff panes"></div>
-            <div id="diffOutput" class="diffOutput afterPane">Select a changed file to inspect its diff.</div>
-          </div>
-        </section>
+            <div class="splitDiff">
+              <div id="diffBefore" class="diffOutput beforePane">Select a changed file to inspect its diff.</div>
+              <div class="diffResizer" id="diffResizer" title="Resize diff panes"></div>
+              <div id="diffOutput" class="diffOutput afterPane">Select a changed file to inspect its diff.</div>
+            </div>
+          </section>
+        </div>
 
       </section>
     </section>
