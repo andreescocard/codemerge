@@ -31,6 +31,7 @@ export function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri) {
     <symbol id="icon-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
     <symbol id="icon-copy" viewBox="0 0 24 24"><path d="M8 8h11v11H8zM5 16H4V4h12v1"/></symbol>
     <symbol id="icon-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13 7l4 4"/></symbol>
+    <symbol id="icon-diff" viewBox="0 0 24 24"><path d="M12 3v18M7 7 3 12l4 5M17 7l4 5-4 5"/></symbol>
     <symbol id="icon-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M7 7l1 14h8l1-14"/></symbol>
     <symbol id="icon-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
     <symbol id="icon-eye-off" viewBox="0 0 24 24"><path d="m3 3 18 18M10.6 10.6A3 3 0 0 0 13.4 13.4M7.1 7.5C4 9.3 2 12 2 12s4 7 10 7c1.7 0 3.2-.5 4.5-1.2M17.7 14.4C20.3 12.8 22 12 22 12s-4-7-10-7c-1 0-2 .2-2.9.5"/></symbol>

@@ -3,12 +3,15 @@ import { execFile } from "node:child_process";
 import { GitClient } from "./git/client";
 import { renderSidebarHtml } from "./panel/html";
 import { CodeMergePanel } from "./panel/panel";
+import { registerGitContentProvider } from "./panel/gitContent";
 
 const selectedRootKey = "codemerge.selectedRoot";
 const recentRootsKey = "codemerge.recentRoots";
 const maxRecentRoots = 8;
 
 export function activate(context: vscode.ExtensionContext) {
+  registerGitContentProvider(context);
+
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
       CodeMergeSidebarProvider.viewType,

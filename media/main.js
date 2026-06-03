@@ -455,17 +455,18 @@
       name.className = "filePath";
       name.textContent = file.path;
 
+      const fileMenuItems = fileActions(file);
       const actions = document.createElement("span");
       actions.className = "fileRowActions";
-      actions.append(
-        fileActionButton(file.staged ? "refresh" : "check", file.staged ? "Unstage" : "Stage", () =>
-          post(file.staged ? "unstage" : "stage", { path: file.path })
-        ),
-        fileActionButton("eye", "Blame", () => post("blame", { path: file.path })),
-        fileActionButton("trash", "Discard", () => post("discard", { path: file.path }), true)
+      fileMenuItems.forEach((entry) =>
+        actions.append(fileActionButton(entry.icon, entry.label, entry.action, entry.danger))
       );
 
       header.append(chevron, status, icon("file"), name, actions);
+      header.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        openLocationMenu(event, fileMenuItems);
+      });
       item.append(header);
 
       if (expanded) {
@@ -496,6 +497,21 @@
       }
     }
     renderFiles(state.snapshot?.files || []);
+  }
+
+  // Shared action list — rendered both as inline row icons and the right-click menu.
+  function fileActions(file) {
+    return [
+      {
+        icon: file.staged ? "refresh" : "check",
+        label: file.staged ? "Unstage" : "Stage",
+        action: () => post(file.staged ? "unstage" : "stage", { path: file.path })
+      },
+      { icon: "edit", label: "Open file", action: () => post("openFile", { path: file.path }) },
+      { icon: "diff", label: "Show diff", action: () => post("showDiff", { path: file.path }) },
+      { icon: "eye", label: "Blame", action: () => post("blame", { path: file.path }) },
+      { icon: "trash", label: "Discard", action: () => post("discard", { path: file.path }), danger: true }
+    ];
   }
 
   function fileActionButton(iconName, label, onClick, danger) {

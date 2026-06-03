@@ -29,6 +29,8 @@ export const MessageType = {
   ContinueOperation: "continueOperation",
   SkipOperation: "skipOperation",
   Blame: "blame",
+  OpenFile: "openFile",
+  ShowDiff: "showDiff",
   Fetch: "fetch",
   Pull: "pull",
   ForcePush: "forcePush",

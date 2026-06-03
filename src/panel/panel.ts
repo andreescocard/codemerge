@@ -1,7 +1,9 @@
 import * as vscode from "vscode";
+import * as path from "node:path";
 import { GitClient } from "../git/client";
 import { MessageType, type WebviewMessage } from "../protocol";
 import { renderHtml } from "./html";
+import { blameUri, showUri } from "./gitContent";
 export class CodeMergePanel {
   private static currentPanel: CodeMergePanel | undefined;
   private static readonly commitPageSize = 80;
@@ -287,9 +289,31 @@ export class CodeMergePanel {
           await this.refresh();
           break;
         case MessageType.Blame:
+          // Open blame in its own read-only tab for legibility, beside the panel.
           if (message.path) {
-            const blame = await this.client.blame(message.path);
-            this.panel.webview.postMessage({ type: "blame", path: message.path, blame });
+            const doc = await vscode.workspace.openTextDocument(blameUri(this.root, message.path));
+            await vscode.window.showTextDocument(doc, { preview: true, viewColumn: vscode.ViewColumn.Beside });
+          }
+          break;
+        case MessageType.OpenFile:
+          // Open the real file in an editable editor tab.
+          if (message.path) {
+            const uri = vscode.Uri.file(path.join(this.root, message.path));
+            await vscode.window.showTextDocument(uri, { preview: false, viewColumn: vscode.ViewColumn.Beside });
+          }
+          break;
+        case MessageType.ShowDiff:
+          // Native side-by-side diff (HEAD vs working tree); left side is read-only.
+          if (message.path) {
+            const left = showUri(this.root, "HEAD", message.path);
+            const right = vscode.Uri.file(path.join(this.root, message.path));
+            await vscode.commands.executeCommand(
+              "vscode.diff",
+              left,
+              right,
+              `${message.path} (HEAD ↔ Working Tree)`,
+              { preview: true, viewColumn: vscode.ViewColumn.Beside }
+            );
           }
           break;
         case MessageType.Fetch:
