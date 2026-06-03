@@ -574,18 +574,19 @@
 
   function sortFiles(files) {
     const sorted = [...files];
+    const stagedFirst = (a, b) => Number(b.staged) - Number(a.staged);
     switch (fileSort.value) {
       case "oldest":
-        return sorted.sort((a, b) => a.mtimeMs - b.mtimeMs || a.path.localeCompare(b.path));
+        return sorted.sort((a, b) => stagedFirst(a, b) || a.mtimeMs - b.mtimeMs || a.path.localeCompare(b.path));
       case "path":
-        return sorted.sort((a, b) => a.path.localeCompare(b.path));
+        return sorted.sort((a, b) => stagedFirst(a, b) || a.path.localeCompare(b.path));
       case "status":
-        return sorted.sort((a, b) => `${a.index}${a.workingTree}`.localeCompare(`${b.index}${b.workingTree}`) || a.path.localeCompare(b.path));
+        return sorted.sort((a, b) => stagedFirst(a, b) || `${a.index}${a.workingTree}`.localeCompare(`${b.index}${b.workingTree}`) || a.path.localeCompare(b.path));
       case "staged":
-        return sorted.sort((a, b) => Number(b.staged) - Number(a.staged) || b.mtimeMs - a.mtimeMs || a.path.localeCompare(b.path));
+        return sorted.sort((a, b) => stagedFirst(a, b) || b.mtimeMs - a.mtimeMs || a.path.localeCompare(b.path));
       case "recent":
       default:
-        return sorted.sort((a, b) => b.mtimeMs - a.mtimeMs || a.path.localeCompare(b.path));
+        return sorted.sort((a, b) => stagedFirst(a, b) || b.mtimeMs - a.mtimeMs || a.path.localeCompare(b.path));
     }
   }
 
