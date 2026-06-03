@@ -111,26 +111,39 @@ export function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri) {
 
         <section class="summaryPane">
           <section id="conflictBanner" class="conflictBanner" hidden></section>
-          <button class="summaryMenu" title="Summary actions"><svg><use href="#icon-more"></use></svg></button>
-          <form id="commitForm" class="commitBox">
-            <textarea id="commitMessage" rows="3" placeholder="Commit Message"></textarea>
-            <div class="branchCreateInline">
-              <input id="newBranchName" class="branchNameInput" type="text" placeholder="New branch">
-              <select id="sourceBranchSelect" title="Create from branch"></select>
-              <button id="createBranchButton" type="button" title="Create branch from selected source"><svg><use href="#icon-branch"></use></svg>Create branch</button>
+
+          <div class="repoBar">
+            <dl class="summaryMeta">
+              <div><dt>Repository</dt><dd id="repoRoot">Loading repository...</dd></div>
+              <div><dt>Branch</dt><dd id="currentBranch">detached</dd></div>
+            </dl>
+            <button class="summaryMenu" title="Working directory actions"><svg><use href="#icon-more"></use></svg></button>
+          </div>
+
+          <form id="commitForm" class="commitComposer">
+            <textarea id="commitMessage" rows="3" placeholder="Commit message"></textarea>
+            <div class="composerActions">
               <label class="amendToggle"><input id="amendCommit" type="checkbox">Amend</label>
               <button type="submit"><svg><use href="#icon-check"></use></svg>Commit staged</button>
             </div>
           </form>
-          <dl class="summaryMeta">
-            <div><dt>Repository</dt><dd id="repoRoot">Loading repository...</dd></div>
-            <div><dt>Branch</dt><dd id="currentBranch">detached</dd></div>
-            <div><dt>Commit Hash</dt><dd id="summaryHash">Select a commit</dd></div>
-            <div><dt>Author</dt><dd id="summaryAuthor">-</dd></div>
-            <div><dt>Date</dt><dd id="summaryDate">-</dd></div>
-            <div><dt>Branches</dt><dd id="summaryRefs">-</dd></div>
-          </dl>
-          <p id="summarySubject" class="summarySubject">Select a commit or changed file to inspect details.</p>
+
+          <section class="branchCreate">
+            <input id="newBranchName" class="branchNameInput" type="text" placeholder="New branch name">
+            <select id="sourceBranchSelect" title="Create from branch"></select>
+            <button id="createBranchButton" type="button" title="Create branch from selected source"><svg><use href="#icon-branch"></use></svg>Create branch</button>
+          </section>
+
+          <section class="commitDetail">
+            <dl class="summaryMeta">
+              <div><dt>Commit</dt><dd id="summaryHash">Select a commit</dd></div>
+              <div><dt>Author</dt><dd id="summaryAuthor">-</dd></div>
+              <div><dt>Date</dt><dd id="summaryDate">-</dd></div>
+              <div><dt>Branches</dt><dd id="summaryRefs">-</dd></div>
+            </dl>
+            <p id="summarySubject" class="summarySubject">Select a commit or changed file to inspect details.</p>
+          </section>
+
           <div class="workingDirectoryHeader">
             <div class="workingTitle"><svg><use href="#icon-file"></use></svg><span>Working Directory</span><strong id="changeCount">0</strong></div>
             <div class="workingActions">

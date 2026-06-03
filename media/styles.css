@@ -25,6 +25,10 @@
   --locations-width: 198px;
   --commits-width: 320px;
   --diff-left: 50%;
+  --space-xs: 4px;
+  --space-sm: 6px;
+  --space-md: 10px;
+  --space-lg: 16px;
   font-family: var(--vscode-font-family);
 }
 
@@ -662,12 +666,22 @@ textarea:focus {
 }
 
 .summaryPane {
-  position: relative;
   display: grid;
-  gap: 10px;
-  padding: 8px 10px 0;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-md) 0;
   background: var(--surface);
   border-bottom: 1px solid var(--line-soft);
+}
+
+.repoBar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.repoBar .summaryMeta {
+  flex: 1 1 auto;
 }
 
 .conflictBanner {
@@ -724,16 +738,20 @@ textarea:focus {
 }
 
 .summaryMenu {
-  position: absolute;
-  top: 6px;
-  right: 12px;
-  width: 88px;
-  border: 0;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 24px;
+  border: 1px solid var(--input-border);
+  border-radius: 3px;
   background: var(--button-bg);
   color: var(--button-fg);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.summaryMenu:hover {
+  background: var(--button-hover);
 }
 
 .summaryMeta {
@@ -765,9 +783,16 @@ textarea:focus {
 }
 
 .summarySubject {
-  margin: 2px 0 8px;
+  margin: 0;
   font-family: var(--vscode-editor-font-family);
   font-size: 13px;
+}
+
+.commitDetail {
+  display: grid;
+  gap: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--line-soft);
 }
 
 .workingDirectoryHeader {
@@ -1046,26 +1071,44 @@ textarea:focus {
   color: var(--muted);
 }
 
-.commitBox {
+.commitComposer {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) auto;
-  gap: 8px;
-  padding: 0 104px 0 0;
-  border-top: 0;
-  background: transparent;
+  gap: var(--space-sm);
 }
 
-.commitBox textarea {
-  min-height: 52px;
+.commitComposer textarea {
+  min-height: 56px;
   resize: vertical;
-  padding: 6px;
+  padding: var(--space-sm);
 }
 
-.branchCreateInline {
+.composerActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.composerActions button[type="submit"] {
+  border-radius: 3px;
+  padding: 0 14px;
+}
+
+.branchCreate {
   display: grid;
-  grid-template-columns: 130px 150px;
-  grid-auto-rows: 24px;
-  gap: 5px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: var(--space-xs);
+  align-items: center;
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--line-soft);
+}
+
+.branchCreate input,
+.branchCreate select,
+.branchCreate button {
+  height: 24px;
+  min-height: 24px;
+  border-radius: 3px;
 }
 
 .amendToggle {
