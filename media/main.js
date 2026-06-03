@@ -713,7 +713,7 @@
       filesBadge.className = "filesBadge";
       const filesChanged = Number(commit.filesChanged);
       filesBadge.textContent = Number.isFinite(filesChanged) ? String(filesChanged) : "";
-      filesBadge.hidden = !Number.isFinite(filesChanged) || filesChanged < 1;
+      filesBadge.hidden = !Number.isFinite(filesChanged);
 
       top.append(subject, filesBadge);
 
@@ -721,18 +721,22 @@
       meta.className = "commitMeta";
       meta.textContent = `${commit.shortHash} · ${commit.author} · ${commit.relativeDate}`;
 
+      const authorBlock = document.createElement("span");
+      authorBlock.className = "commitAuthorBlock";
       const author = document.createElement("span");
       author.className = "commitAuthor";
       author.textContent = commit.author || commit.shortHash;
+      const date = document.createElement("span");
+      date.className = "commitDate";
+      date.textContent = formatCommitDate(commit.committedAt, commit.relativeDate);
+      authorBlock.append(author, date);
       const rightMeta = document.createElement("span");
       rightMeta.className = "commitRightMeta";
       const refPills = renderRefPills(commit);
       if (refPills.children.length) {
         rightMeta.append(refPills);
-      } else {
-        rightMeta.textContent = formatCommitDate(commit.committedAt);
       }
-      meta.replaceChildren(author, rightMeta);
+      meta.replaceChildren(authorBlock, rightMeta);
       body.append(top, meta);
 
       row.append(graph, body);
@@ -839,19 +843,25 @@
 
   function renderCommitGraph(commit) {
     const laneGap = 16;
-    const lanes = Math.max(1, Math.min(4, commit.lanes || 1));
+    const lanes = 4;
+    const activeLanes = Math.max(1, Math.min(4, commit.lanes || 1));
     const width = lanes * laneGap + 12;
     const height = 100;
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.classList.add("graph");
-    if (lanes === 1) {
+    if (activeLanes === 1) {
       svg.classList.add("singleLane");
     }
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
     svg.setAttribute("preserveAspectRatio", "none");
     svg.setAttribute("aria-hidden", "true");
 
-    (commit.routes || []).forEach((route) => {
+    const nodeLane = Math.min(commit.lane || 0, lanes - 1);
+    const routes = Array.isArray(commit.routes) && commit.routes.length
+      ? commit.routes
+      : [{ fromLane: nodeLane, fromY: 0, toLane: nodeLane, toY: 1, colorLane: commit.colorLane || nodeLane }];
+
+    routes.forEach((route) => {
       const from = Math.min(route.fromLane || 0, lanes - 1);
       const to = Math.min(route.toLane || 0, lanes - 1);
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -871,8 +881,8 @@
 
     const nodeSize = 7;
     const node = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    node.classList.add("graphNode", `lane-${Math.min(commit.colorLane || commit.lane || 0, 3)}`);
-    node.setAttribute("x", String(xForLane(Math.min(commit.lane || 0, lanes - 1)) - nodeSize / 2));
+    node.classList.add("graphNode", `lane-${Math.min(commit.colorLane || nodeLane, 3)}`);
+    node.setAttribute("x", String(xForLane(nodeLane) - nodeSize / 2));
     node.setAttribute("y", String(height / 2 - nodeSize / 2));
     node.setAttribute("width", String(nodeSize));
     node.setAttribute("height", String(nodeSize));
@@ -930,21 +940,17 @@
       });
   }
 
-  function formatCommitDate(value) {
+  function formatCommitDate(value, fallback) {
     if (!value) {
-      return "";
+      return fallback || "";
     }
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) {
-      return "";
+      return fallback || "";
     }
     const now = Date.now();
-    const ageMs = Math.abs(now - date.getTime());
-    if (ageMs <= 7 * 24 * 60 * 60 * 1000) {
-      return new Intl.DateTimeFormat(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
-    }
     if (date.getFullYear() === new Date(now).getFullYear()) {
-      return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
+      return new Intl.DateTimeFormat(undefined, { month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
     }
     return new Intl.DateTimeFormat(undefined, { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
   }
