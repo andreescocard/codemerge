@@ -3,6 +3,9 @@
   const state = {
     selectedPath: undefined,
     selectedCommit: undefined,
+    commitFiles: undefined,
+    fileCommitHash: undefined,
+    loadingCommitFiles: false,
     hiddenBranches: new Set(vscode.getState()?.hiddenBranches || []),
     commitScope: vscode.getState()?.commitScope,
     expandedPaths: new Set(),
@@ -116,8 +119,8 @@
       ]
     );
   });
-  fileFilter.addEventListener("input", () => renderFiles(state.snapshot?.files || []));
-  fileSort.addEventListener("change", () => renderFiles(state.snapshot?.files || []));
+  fileFilter.addEventListener("input", () => renderFiles());
+  fileSort.addEventListener("change", () => renderFiles());
   commitFilter.addEventListener("input", () => renderCommits(state.snapshot?.commits || []));
   // Drive the initial load from the webview so the host only posts the
   // snapshot once this message listener is registered (avoids a startup race
@@ -165,6 +168,9 @@
 
     if (message.type === "snapshot") {
       state.snapshot = message.snapshot;
+      state.commitFiles = undefined;
+      state.fileCommitHash = undefined;
+      state.loadingCommitFiles = false;
       renderSnapshot(message.snapshot);
       updateHistoryButtons();
     }
@@ -172,10 +178,22 @@
     if (message.type === "diff") {
       state.selectedPath = message.path;
       if (message.path) {
-        state.diffCache[message.path] = message;
+        state.diffCache[diffCacheKey(message.path, message.hash)] = message;
         state.expandedPaths.add(message.path);
       }
-      renderFiles(state.snapshot?.files || []);
+      renderFiles();
+    }
+
+    if (message.type === "commitFiles") {
+      state.fileCommitHash = message.hash;
+      state.commitFiles = message.files || [];
+      state.loadingCommitFiles = false;
+      state.diffCache = {};
+      state.expandedPaths.clear();
+      state.selectedPath = undefined;
+      commitSummaryCount.textContent = `${plural(state.commitFiles.length, "file")} changed in ${message.hash.slice(0, 8)}`;
+      changeCount.textContent = String(state.commitFiles.length);
+      renderFiles();
     }
 
     if (message.type === "blame") {
@@ -184,7 +202,7 @@
         state.diffCache[message.path] = { kind: "blame", blame: message.blame || [], path: message.path };
         state.expandedPaths.add(message.path);
       }
-      renderFiles(state.snapshot?.files || []);
+      renderFiles();
     }
 
     if (message.type === "error") {
@@ -208,7 +226,7 @@
     renderStashes(snapshot.stashes || []);
     renderSubmodules(snapshot.submodules || []);
     renderConflictState(snapshot);
-    renderFiles(snapshot.files);
+    renderFiles();
     renderCommits(snapshot.commits);
   }
 
@@ -428,13 +446,17 @@
     });
   }
 
-  function renderFiles(files) {
+  function renderFiles(files = currentFiles()) {
     const query = fileFilter.value.trim().toLowerCase();
     const filteredFiles = query ? files.filter((file) => file.path.toLowerCase().includes(query)) : files;
     const visibleFiles = sortFiles(filteredFiles);
     fileList.innerHTML = "";
     if (!files.length) {
-      fileList.append(empty("Working tree clean"));
+      if (state.loadingCommitFiles) {
+        fileList.append(empty("Loading changed files..."));
+        return;
+      }
+      fileList.append(empty(state.fileCommitHash ? "No files changed in this commit" : "Working tree clean"));
       return;
     }
     if (!visibleFiles.length) {
@@ -450,7 +472,7 @@
       const header = document.createElement("button");
       header.type = "button";
       header.className = `fileRow ${expanded ? "expanded" : ""} ${file.path === state.selectedPath ? "selected" : ""}`;
-      header.title = `${file.path} (${file.mtimeLabel})`;
+      header.title = state.fileCommitHash ? `${file.path} in ${state.fileCommitHash.slice(0, 8)}` : `${file.path} (${file.mtimeLabel})`;
       header.setAttribute("aria-expanded", String(expanded));
       header.addEventListener("click", () => toggleFileExpand(file.path));
 
@@ -481,12 +503,12 @@
       if (expanded) {
         const body = document.createElement("div");
         body.className = "fileDiffBody";
-        const cached = state.diffCache[file.path];
+        const cached = state.diffCache[diffCacheKey(file.path)];
         if (cached) {
           renderInlineDiff(body, cached, file.path);
         } else {
           body.append(empty("Loading diff..."));
-          post("selectFile", { path: file.path });
+          post("selectFile", { path: file.path, hash: state.fileCommitHash });
         }
         item.append(body);
       }
@@ -501,15 +523,30 @@
       state.expandedPaths.delete(path);
     } else {
       state.expandedPaths.add(path);
-      if (!state.diffCache[path]) {
-        post("selectFile", { path });
+      if (!state.diffCache[diffCacheKey(path)]) {
+        post("selectFile", { path, hash: state.fileCommitHash });
       }
     }
-    renderFiles(state.snapshot?.files || []);
+    renderFiles();
+  }
+
+  function currentFiles() {
+    return state.commitFiles || state.snapshot?.files || [];
+  }
+
+  function diffCacheKey(path, hash = state.fileCommitHash) {
+    return `${hash || "work"}:${path}`;
   }
 
   // Shared action list — rendered both as inline row icons and the right-click menu.
   function fileActions(file) {
+    if (state.fileCommitHash) {
+      return [
+        { icon: "edit", label: "Open file", action: () => post("openFile", { path: file.path }) },
+        { icon: "copy", label: "Copy path", action: () => navigator.clipboard?.writeText(file.path) }
+      ];
+    }
+
     return [
       {
         icon: file.staged ? "refresh" : "check",
@@ -674,19 +711,11 @@
 
       const filesBadge = document.createElement("span");
       filesBadge.className = "filesBadge";
-      filesBadge.textContent = String(commit.filesChanged || 0);
-      filesBadge.hidden = (commit.filesChanged || 0) <= 1;
+      const filesChanged = Number(commit.filesChanged);
+      filesBadge.textContent = Number.isFinite(filesChanged) ? String(filesChanged) : "";
+      filesBadge.hidden = !Number.isFinite(filesChanged) || filesChanged < 1;
 
-      const cherryPick = document.createElement("button");
-      cherryPick.className = "commitAction";
-      cherryPick.type = "button";
-      cherryPick.append(icon("merge"), textSpan("Cherry-pick"));
-      cherryPick.addEventListener("click", (event) => {
-        event.stopPropagation();
-        post("cherryPick", { hash: commit.hash });
-      });
-
-      top.append(subject, filesBadge, cherryPick);
+      top.append(subject, filesBadge);
 
       const meta = document.createElement("div");
       meta.className = "commitMeta";
@@ -701,7 +730,7 @@
       if (refPills.children.length) {
         rightMeta.append(refPills);
       } else {
-        rightMeta.textContent = formatCommitDate(commit.committedAt) || commit.relativeDate || "";
+        rightMeta.textContent = formatCommitDate(commit.committedAt);
       }
       meta.replaceChildren(author, rightMeta);
       body.append(top, meta);
@@ -739,6 +768,16 @@
 
     state.selectedCommit = hash;
     renderSummary(commit);
+    state.commitFiles = [];
+    state.fileCommitHash = hash;
+    state.loadingCommitFiles = true;
+    state.diffCache = {};
+    state.expandedPaths.clear();
+    state.selectedPath = undefined;
+    commitSummaryCount.textContent = `Loading files changed in ${commit.shortHash}...`;
+    changeCount.textContent = "0";
+    renderFiles();
+    post("selectCommit", { hash });
     renderCommits(state.snapshot?.commits || []);
     updateHistoryButtons();
   }
@@ -805,6 +844,9 @@
     const height = 100;
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.classList.add("graph");
+    if (lanes === 1) {
+      svg.classList.add("singleLane");
+    }
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
     svg.setAttribute("preserveAspectRatio", "none");
     svg.setAttribute("aria-hidden", "true");
@@ -827,7 +869,7 @@
       svg.append(path);
     });
 
-    const nodeSize = 8;
+    const nodeSize = 7;
     const node = document.createElementNS("http://www.w3.org/2000/svg", "rect");
     node.classList.add("graphNode", `lane-${Math.min(commit.colorLane || commit.lane || 0, 3)}`);
     node.setAttribute("x", String(xForLane(Math.min(commit.lane || 0, lanes - 1)) - nodeSize / 2));
@@ -846,13 +888,27 @@
   function renderRefPills(commit) {
     const refs = document.createElement("span");
     refs.className = "refs";
-    parseRefs(commit.refs).forEach((ref) => {
+    primaryRefs(commit).forEach((ref) => {
       const pill = document.createElement("span");
       pill.className = `refPill ${ref.kind}`;
       pill.textContent = ref.label;
       refs.append(pill);
     });
     return refs;
+  }
+
+  function primaryRefs(commit) {
+    const refs = parseRefs(commit.refs);
+    const current = state.snapshot?.currentBranch;
+    const currentRef = refs.find((ref) => ref.label === current);
+    if (currentRef) {
+      return [currentRef];
+    }
+    const local = refs.find((ref) => ref.kind === "head" || ref.kind === "local");
+    if (local) {
+      return [local];
+    }
+    return refs.slice(0, 1);
   }
 
   function parseRefs(refs) {
@@ -888,9 +944,9 @@
       return new Intl.DateTimeFormat(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
     }
     if (date.getFullYear() === new Date(now).getFullYear()) {
-      return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(date);
+      return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
     }
-    return date.toISOString().slice(0, 10);
+    return new Intl.DateTimeFormat(undefined, { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
   }
 
   function graphLine(x1, y1, x2, y2, className) {

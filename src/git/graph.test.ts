@@ -20,15 +20,7 @@ describe("assignCommitGraph", () => {
       { ...base, hash: "a", parents: [] }
     ])).toMatchObject([
       { hash: "c", lane: 0, colorLane: 0, routes: [{ fromLane: 0, fromY: 0.5, toLane: 0, toY: 1, colorLane: 0 }] },
-      {
-        hash: "b",
-        lane: 0,
-        colorLane: 0,
-        routes: [
-          { fromLane: 0, fromY: 0, toLane: 0, toY: 0.5, colorLane: 0 },
-          { fromLane: 0, fromY: 0.5, toLane: 0, toY: 1, colorLane: 0 }
-        ]
-      },
+      { hash: "b", lane: 0, colorLane: 0, routes: [{ fromLane: 0, fromY: 0, toLane: 0, toY: 1, colorLane: 0 }] },
       { hash: "a", lane: 0, colorLane: 0, routes: [{ fromLane: 0, fromY: 0, toLane: 0, toY: 0.5, colorLane: 0 }] }
     ]);
   });

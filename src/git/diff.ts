@@ -31,7 +31,7 @@ export type SelectedLinesPatchInput = {
   selectedLineIndexes: number[];
 };
 
-export type DiffSectionKind = "staged" | "unstaged";
+export type DiffSectionKind = "staged" | "unstaged" | "commit";
 
 export type DiffSection = {
   kind: DiffSectionKind;

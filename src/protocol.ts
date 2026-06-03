@@ -2,6 +2,7 @@ export const MessageType = {
   Refresh: "refresh",
   LoadMoreCommits: "loadMoreCommits",
   SetCommitScope: "setCommitScope",
+  SelectCommit: "selectCommit",
   SelectFile: "selectFile",
   Stage: "stage",
   StageHunk: "stageHunk",

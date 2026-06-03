@@ -228,6 +228,35 @@ export class GitClient {
     return sections;
   }
 
+  async commitFiles(hash: string): Promise<GitFile[]> {
+    const output = await this.git(["diff-tree", "--no-commit-id", "--name-status", "-r", "--root", "-m", hash], gitTimeoutMs);
+    return output
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((line) => {
+        const [status = "M", ...paths] = line.split("\t");
+        const path = paths.at(-1) ?? "";
+        return {
+          path,
+          index: status[0] ?? "M",
+          workingTree: " ",
+          staged: false,
+          mtimeMs: 0,
+          mtimeLabel: hash.slice(0, 8)
+        };
+      })
+      .filter((file) => file.path);
+  }
+
+  async commitFileDiff(hash: string, filePath: string): Promise<string> {
+    return this.git(["show", "--format=", "--find-renames", "--patch", hash, "--", filePath], gitTimeoutMs);
+  }
+
+  async structuredCommitFileDiff(hash: string, filePath: string): Promise<DiffSection[]> {
+    const diff = await this.commitFileDiff(hash, filePath);
+    return diff.trim() ? [{ kind: "commit", title: `Commit ${hash.slice(0, 8)}`, files: parseDiff(diff) }] : [];
+  }
+
   async blame(filePath: string): Promise<BlameLine[]> {
     return parseBlame(await this.git(["blame", "--porcelain", "--", filePath], gitTimeoutMs));
   }

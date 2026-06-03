@@ -390,7 +390,7 @@ textarea:focus {
   display: grid;
   grid-template-columns: 76px minmax(0, 1fr);
   gap: 5px;
-  min-height: 54px;
+  min-height: 44px;
   padding: 0 10px;
   border-bottom: 1px solid var(--line-soft);
   background: var(--surface);
@@ -417,9 +417,13 @@ textarea:focus {
 
 .graphRoute {
   fill: none;
-  stroke-width: 2;
+  stroke-width: 1.7;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.graph.singleLane .graphRoute {
+  stroke-width: 1.15;
 }
 
 .graphRoute.lane-0,
@@ -469,7 +473,7 @@ textarea:focus {
 
 .commitTop {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 6px;
   align-items: center;
 }
@@ -479,6 +483,7 @@ textarea:focus {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 700;
+  line-height: 1.25;
 }
 
 .commitMeta,
@@ -493,7 +498,7 @@ textarea:focus {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
-  margin-top: 3px;
+  margin-top: 2px;
   align-items: center;
 }
 
@@ -560,22 +565,6 @@ textarea:focus {
 .refPill.head {
   background: var(--vscode-button-background);
   color: var(--vscode-button-foreground);
-}
-
-.commitAction {
-  min-height: 20px;
-  opacity: 0;
-  font-size: 11px;
-  border-color: var(--input-border);
-  border-radius: 3px;
-  background: var(--button-bg);
-  color: var(--button-fg);
-  transition: opacity 120ms ease-out;
-}
-
-.commitRow:hover .commitAction,
-.commitRow.selected .commitAction {
-  opacity: 1;
 }
 
 .loadMoreCommits {
@@ -690,7 +679,7 @@ textarea:focus {
   border: 1px solid transparent;
   border-radius: 3px;
   background: transparent;
-  color: inherit;
+  color: #fff;
 }
 
 .fileRowAction:hover {

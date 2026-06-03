@@ -67,7 +67,17 @@ export class CodeMergePanel {
           break;
         case MessageType.SelectFile:
           this.selectedFile = message.path;
-          await this.sendDiff(message.path);
+          if (message.hash && message.path) {
+            await this.sendCommitDiff(message.hash, message.path);
+          } else {
+            await this.sendDiff(message.path);
+          }
+          break;
+        case MessageType.SelectCommit:
+          if (message.hash) {
+            const files = await this.client.commitFiles(message.hash);
+            this.panel.webview.postMessage({ type: "commitFiles", hash: message.hash, files });
+          }
           break;
         case MessageType.Stage:
           if (message.path) {
@@ -537,6 +547,12 @@ export class CodeMergePanel {
     const diff = await this.client.diff(filePath);
     const structuredDiff = await this.client.structuredDiff(filePath);
     this.panel.webview.postMessage({ type: "diff", path: filePath, diff, structuredDiff });
+  }
+
+  private async sendCommitDiff(hash: string, filePath: string) {
+    const diff = await this.client.commitFileDiff(hash, filePath);
+    const structuredDiff = await this.client.structuredCommitFileDiff(hash, filePath);
+    this.panel.webview.postMessage({ type: "diff", path: filePath, hash, diff, structuredDiff });
   }
 
   private async runConflictAwareOperation(operation: () => Promise<string>): Promise<void> {

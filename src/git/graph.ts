@@ -47,10 +47,17 @@ export function assignCommitGraph(commits: GraphInput[]): Commit[] {
 
 function routesForCommit(hash: string, nodeLane: number, parents: string[], prevLanes: string[], nextLanes: string[]): GraphRoute[] {
   const routes: GraphRoute[] = [];
+  const continuedNodeLanes = new Set<number>();
 
   prevLanes.forEach((value, fromLane) => {
     if (value === hash) {
-      routes.push(route(fromLane, 0, nodeLane, nodeY, nodeLane));
+      const firstParentLane = parents.length ? nextLanes.indexOf(parents[0]) : -1;
+      if (firstParentLane === fromLane) {
+        routes.push(route(fromLane, 0, fromLane, 1, fromLane));
+        continuedNodeLanes.add(fromLane);
+      } else {
+        routes.push(route(fromLane, 0, nodeLane, nodeY, nodeLane));
+      }
       return;
     }
 
@@ -62,6 +69,9 @@ function routesForCommit(hash: string, nodeLane: number, parents: string[], prev
 
   parents.forEach((parent) => {
     const toLane = nextLanes.indexOf(parent);
+    if (toLane === nodeLane && continuedNodeLanes.has(nodeLane)) {
+      return;
+    }
     routes.push(route(nodeLane, nodeY, toLane === -1 ? nodeLane : toLane, 1, toLane === -1 ? nodeLane : toLane));
   });
 
