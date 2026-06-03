@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { stat } from "node:fs/promises";
 import * as path from "node:path";
 import { mapWithConcurrency } from "../utils/async";
+import { buildSelectedLinesPatch, parseDiff, type DiffSection, type DiffSectionKind } from "./diff";
 import { parseBranches, parseCommits, parseRemotes, parseStashes, parseStatus, parseSubmodules, parseTags, withMtime } from "./parsers";
 import type { Branch, Commit, GitFile, Remote, Snapshot, Stash, Submodule, Tag } from "./types";
 
@@ -163,6 +164,43 @@ export class GitClient {
     return chunks.join("\n\n") || "No textual diff available for this file.";
   }
 
+  async structuredDiff(filePath: string): Promise<DiffSection[]> {
+    const [staged, unstaged] = await Promise.all([
+      this.git(["diff", "--cached", "--", filePath], gitTimeoutMs),
+      this.git(["diff", "--", filePath], gitTimeoutMs)
+    ]);
+    const sections: DiffSection[] = [];
+
+    if (staged.trim()) {
+      sections.push({ kind: "staged", title: "Staged changes", files: parseDiff(staged) });
+    }
+    if (unstaged.trim()) {
+      sections.push({ kind: "unstaged", title: "Working tree changes", files: parseDiff(unstaged) });
+    }
+
+    return sections;
+  }
+
+  async stageHunk(filePath: string, hunkIndex: number): Promise<string> {
+    const patch = await this.patchForHunk(filePath, "unstaged", hunkIndex);
+    return this.gitWithInput(["apply", "--cached", "--unidiff-zero", "-"], patch);
+  }
+
+  async unstageHunk(filePath: string, hunkIndex: number): Promise<string> {
+    const patch = await this.patchForHunk(filePath, "staged", hunkIndex);
+    return this.gitWithInput(["apply", "--cached", "--reverse", "--unidiff-zero", "-"], patch);
+  }
+
+  async stageLines(filePath: string, hunkIndex: number, selectedLineIndexes: number[]): Promise<string> {
+    const patch = await this.patchForSelectedLines(filePath, "unstaged", hunkIndex, selectedLineIndexes);
+    return this.gitWithInput(["apply", "--cached", "--unidiff-zero", "-"], patch);
+  }
+
+  async unstageLines(filePath: string, hunkIndex: number, selectedLineIndexes: number[]): Promise<string> {
+    const patch = await this.patchForSelectedLines(filePath, "staged", hunkIndex, selectedLineIndexes);
+    return this.gitWithInput(["apply", "--cached", "--reverse", "--unidiff-zero", "-"], patch);
+  }
+
   stage(filePath: string): Promise<string> {
     return this.git(["add", "--", filePath]);
   }
@@ -244,6 +282,33 @@ export class GitClient {
     return this.git(["push"], gitNetworkTimeoutMs);
   }
 
+  private async patchForHunk(filePath: string, kind: DiffSectionKind, hunkIndex: number): Promise<string> {
+    return this.hunkFor(filePath, kind, hunkIndex).then(({ hunk }) => hunk.patch);
+  }
+
+  private async patchForSelectedLines(
+    filePath: string,
+    kind: DiffSectionKind,
+    hunkIndex: number,
+    selectedLineIndexes: number[]
+  ): Promise<string> {
+    const { file, hunk } = await this.hunkFor(filePath, kind, hunkIndex);
+    return buildSelectedLinesPatch({ file, hunk, selectedLineIndexes });
+  }
+
+  private async hunkFor(filePath: string, kind: DiffSectionKind, hunkIndex: number) {
+    const sections = await this.structuredDiff(filePath);
+    const section = sections.find((candidate) => candidate.kind === kind);
+    const entries = section?.files.flatMap((file) => file.hunks.map((hunk) => ({ file, hunk }))) ?? [];
+    const entry = entries[hunkIndex];
+
+    if (!entry) {
+      throw new Error(`Could not find ${kind} hunk ${hunkIndex + 1} for ${filePath}.`);
+    }
+
+    return entry;
+  }
+
   private git(args: string[], timeout = gitTimeoutMs): Promise<string> {
     return new Promise((resolve, reject) => {
       execFile("git", args, { cwd: this.cwd, windowsHide: true, timeout, maxBuffer: 20 * 1024 * 1024 }, (error, stdout, stderr) => {
@@ -262,6 +327,20 @@ export class GitClient {
       execFile("git", args, { cwd: this.cwd, windowsHide: true, timeout, maxBuffer: 20 * 1024 * 1024 }, (error, stdout) => {
         resolve(error ? "" : stdout);
       });
+    });
+  }
+
+  private gitWithInput(args: string[], input: string, timeout = gitTimeoutMs): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const child = execFile("git", args, { cwd: this.cwd, windowsHide: true, timeout, maxBuffer: 20 * 1024 * 1024 }, (error, stdout, stderr) => {
+        if (error) {
+          const detail = (stderr || stdout || error.message).trim();
+          reject(new Error(error.killed ? `Git command timed out: git ${args.join(" ")}` : detail));
+          return;
+        }
+        resolve(stdout);
+      });
+      child.stdin?.end(input);
     });
   }
 

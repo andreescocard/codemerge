@@ -39,6 +39,15 @@ describe("GitClient", () => {
   it("stages and commits working tree changes", async () => {
     await writeFile(path.join(repo, "file.txt"), "one\ntwo\n", "utf8");
     expect(await client.status()).toMatchObject([{ path: "file.txt", index: " ", workingTree: "M", staged: false }]);
+    expect(await client.structuredDiff("file.txt")).toMatchObject([
+      { kind: "unstaged", files: [{ hunks: [{ index: 0 }] }] }
+    ]);
+
+    await client.stageHunk("file.txt", 0);
+    expect(await client.status()).toMatchObject([{ path: "file.txt", index: "M", workingTree: " ", staged: true }]);
+
+    await client.unstageHunk("file.txt", 0);
+    expect(await client.status()).toMatchObject([{ path: "file.txt", index: " ", workingTree: "M", staged: false }]);
 
     await client.stage("file.txt");
     expect(await client.status()).toMatchObject([{ path: "file.txt", index: "M", workingTree: " ", staged: true }]);
@@ -48,7 +57,24 @@ describe("GitClient", () => {
     expect((await client.commits())[0]).toMatchObject({ subject: "update file" });
   });
 
+  it("stages and unstages selected lines", async () => {
+    await writeFile(path.join(repo, "file.txt"), "one\nselected\ntwo\nunstaged\n", "utf8");
+
+    await client.stageLines("file.txt", 0, [1]);
+    expect(await client.status()).toMatchObject([{ path: "file.txt", index: "M", workingTree: "M", staged: true }]);
+    expect(await gitOutput(["diff", "--cached", "--", "file.txt"])).toContain("+selected");
+    expect(await gitOutput(["diff", "--cached", "--", "file.txt"])).not.toContain("+unstaged");
+
+    await client.unstageLines("file.txt", 0, [1]);
+    expect(await client.status()).toMatchObject([{ path: "file.txt", index: " ", workingTree: "M", staged: false }]);
+  });
+
   async function git(args: string[]) {
     await execFileAsync("git", args, { cwd: repo, windowsHide: true });
+  }
+
+  async function gitOutput(args: string[]) {
+    const { stdout } = await execFileAsync("git", args, { cwd: repo, windowsHide: true });
+    return stdout;
   }
 });

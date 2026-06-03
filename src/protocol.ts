@@ -2,8 +2,12 @@ export const MessageType = {
   Refresh: "refresh",
   SelectFile: "selectFile",
   Stage: "stage",
+  StageHunk: "stageHunk",
+  StageLines: "stageLines",
   StageAll: "stageAll",
   Unstage: "unstage",
+  UnstageHunk: "unstageHunk",
+  UnstageLines: "unstageLines",
   Discard: "discard",
   DiscardAll: "discardAll",
   Commit: "commit",
@@ -46,6 +50,8 @@ export type WebviewMessage = {
   tag?: string;
   remote?: string;
   url?: string;
+  hunkIndex?: number;
+  lineIndexes?: number[];
   includeUntracked?: boolean;
   message?: string;
 };

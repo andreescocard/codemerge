@@ -157,9 +157,9 @@ export function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri) {
             </div>
           </div>
           <div class="splitDiff">
-            <pre id="diffBefore" class="diffOutput beforePane">Select a changed file to inspect its diff.</pre>
+            <div id="diffBefore" class="diffOutput beforePane">Select a changed file to inspect its diff.</div>
             <div class="diffResizer" id="diffResizer" title="Resize diff panes"></div>
-            <pre id="diffOutput" class="diffOutput afterPane">Select a changed file to inspect its diff.</pre>
+            <div id="diffOutput" class="diffOutput afterPane">Select a changed file to inspect its diff.</div>
           </div>
         </section>
 

@@ -756,6 +756,111 @@ textarea:focus {
   background: var(--vscode-diffEditor-removedTextBackground, var(--surface));
 }
 
+.diffSummaryLine {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 10px;
+  padding: 2px 0;
+  white-space: normal;
+}
+
+.diffSummaryLine span:first-child {
+  color: var(--muted);
+  text-align: right;
+}
+
+.diffSection {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.diffSectionTitle,
+.diffFileTitle {
+  font-family: var(--vscode-font-family);
+  font-weight: 700;
+  white-space: normal;
+}
+
+.diffFileTitle {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.diffHunk {
+  display: grid;
+  border: 1px solid var(--line-soft);
+  background: var(--vscode-editor-background);
+}
+
+.diffHunkHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--pane);
+  color: var(--muted);
+}
+
+.diffHunkHeader button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
+  border-radius: 3px;
+}
+
+.diffHunkActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.diffLine {
+  display: grid;
+  grid-template-columns: 52px 52px 20px minmax(0, 1fr);
+  min-height: 19px;
+}
+
+.diffLine.add {
+  background: var(--vscode-diffEditor-insertedLineBackground, color-mix(in srgb, var(--green) 16%, transparent));
+}
+
+.diffLine.del {
+  background: var(--vscode-diffEditor-removedLineBackground, color-mix(in srgb, var(--danger) 14%, transparent));
+}
+
+.diffLine.add,
+.diffLine.del {
+  cursor: pointer;
+}
+
+.diffLine.add.selected,
+.diffLine.del.selected {
+  outline: 1px solid var(--blue);
+  outline-offset: -1px;
+  background: var(--vscode-list-activeSelectionBackground, var(--blue-soft));
+  color: var(--vscode-list-activeSelectionForeground, var(--selection-fg));
+}
+
+.diffLineNumber,
+.diffPrefix {
+  color: var(--muted);
+  user-select: none;
+  text-align: right;
+}
+
+.diffPrefix {
+  text-align: center;
+}
+
+.diffLineText {
+  min-width: 0;
+  overflow: visible;
+}
+
 .commitBox {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) auto;

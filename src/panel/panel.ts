@@ -58,6 +58,18 @@ export class CodeMergePanel {
             await this.refresh(message.path);
           }
           break;
+        case MessageType.StageHunk:
+          if (message.path && message.hunkIndex !== undefined) {
+            await this.client.stageHunk(message.path, message.hunkIndex);
+            await this.refresh(message.path);
+          }
+          break;
+        case MessageType.StageLines:
+          if (message.path && message.hunkIndex !== undefined && message.lineIndexes?.length) {
+            await this.client.stageLines(message.path, message.hunkIndex, message.lineIndexes);
+            await this.refresh(message.path);
+          }
+          break;
         case MessageType.StageAll:
           await this.client.stageAll();
           await this.refresh();
@@ -65,6 +77,18 @@ export class CodeMergePanel {
         case MessageType.Unstage:
           if (message.path) {
             await this.client.unstage(message.path);
+            await this.refresh(message.path);
+          }
+          break;
+        case MessageType.UnstageHunk:
+          if (message.path && message.hunkIndex !== undefined) {
+            await this.client.unstageHunk(message.path, message.hunkIndex);
+            await this.refresh(message.path);
+          }
+          break;
+        case MessageType.UnstageLines:
+          if (message.path && message.hunkIndex !== undefined && message.lineIndexes?.length) {
+            await this.client.unstageLines(message.path, message.hunkIndex, message.lineIndexes);
             await this.refresh(message.path);
           }
           break;
@@ -379,6 +403,7 @@ export class CodeMergePanel {
     }
 
     const diff = await this.client.diff(filePath);
-    this.panel.webview.postMessage({ type: "diff", path: filePath, diff });
+    const structuredDiff = await this.client.structuredDiff(filePath);
+    this.panel.webview.postMessage({ type: "diff", path: filePath, diff, structuredDiff });
   }
 }

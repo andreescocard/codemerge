@@ -135,8 +135,7 @@
     if (message.type === "diff") {
       state.selectedPath = message.path;
       diffTitle.textContent = message.path || "Diff";
-      diffBefore.textContent = message.path ? "Base version\n\n" + trimDiffForPane(message.diff, "before") : "Select a changed file to inspect its diff.";
-      diffOutput.textContent = message.diff ? trimDiffForPane(message.diff, "after") : "Select a changed file to inspect its diff.";
+      renderDiff(message);
       renderFiles(state.snapshot?.files || []);
     }
 
@@ -440,6 +439,155 @@
     summaryDate.textContent = commit.relativeDate || "-";
     summaryRefs.textContent = commit.refs || "-";
     summarySubject.textContent = commit.subject || "Commit selected.";
+  }
+
+  function renderDiff(message) {
+    if (!message.path) {
+      diffBefore.textContent = "Select a changed file to inspect its diff.";
+      diffOutput.textContent = "Select a changed file to inspect its diff.";
+      return;
+    }
+
+    if (!message.structuredDiff?.length) {
+      diffBefore.textContent = "Base version\n\n" + trimDiffForPane(message.diff, "before");
+      diffOutput.textContent = message.diff ? trimDiffForPane(message.diff, "after") : "No textual diff available for this file.";
+      return;
+    }
+
+    const hunkCount = message.structuredDiff.reduce(
+      (count, section) => count + section.files.reduce((fileCount, file) => fileCount + file.hunks.length, 0),
+      0
+    );
+    diffBefore.replaceChildren(
+      diffSummaryLine("File", message.path),
+      diffSummaryLine("Sections", message.structuredDiff.map((section) => section.title).join(", ")),
+      diffSummaryLine("Hunks", String(hunkCount))
+    );
+
+    diffOutput.innerHTML = "";
+    message.structuredDiff.forEach((section) => {
+      let sectionHunkIndex = 0;
+      const sectionElement = document.createElement("section");
+      sectionElement.className = "diffSection";
+      sectionElement.append(textBlock(section.title, "diffSectionTitle"));
+
+      section.files.forEach((file) => {
+        sectionElement.append(textBlock(`${file.oldPath || "/dev/null"} -> ${file.newPath || "/dev/null"}`, "diffFileTitle"));
+        file.hunks.forEach((hunk) => {
+          const actionIndex = sectionHunkIndex;
+          sectionHunkIndex += 1;
+          sectionElement.append(renderHunk(section.kind, actionIndex, hunk));
+        });
+      });
+
+      diffOutput.append(sectionElement);
+    });
+  }
+
+  function renderHunk(kind, hunkIndex, hunk) {
+    const hunkElement = document.createElement("section");
+    hunkElement.className = "diffHunk";
+    const selectedLines = new Set();
+
+    const header = document.createElement("div");
+    header.className = "diffHunkHeader";
+    header.append(textSpan(hunk.header));
+
+    const actions = document.createElement("div");
+    actions.className = "diffHunkActions";
+
+    const selectedAction = document.createElement("button");
+    selectedAction.type = "button";
+    selectedAction.disabled = true;
+    selectedAction.append(icon(kind === "staged" ? "refresh" : "check"), textSpan(kind === "staged" ? "Unstage Selected" : "Stage Selected"));
+    selectedAction.addEventListener("click", () => {
+      if (state.selectedPath && selectedLines.size) {
+        post(kind === "staged" ? "unstageLines" : "stageLines", {
+          path: state.selectedPath,
+          hunkIndex,
+          lineIndexes: [...selectedLines].sort((a, b) => a - b)
+        });
+      }
+    });
+
+    const action = document.createElement("button");
+    action.type = "button";
+    action.append(icon(kind === "staged" ? "refresh" : "check"), textSpan(kind === "staged" ? "Unstage Hunk" : "Stage Hunk"));
+    action.addEventListener("click", () => {
+      if (state.selectedPath) {
+        post(kind === "staged" ? "unstageHunk" : "stageHunk", { path: state.selectedPath, hunkIndex });
+      }
+    });
+    actions.append(selectedAction, action);
+    header.append(actions);
+    hunkElement.append(header);
+
+    hunk.lines.forEach((line, lineIndex) => {
+      const row = document.createElement("div");
+      row.className = `diffLine ${line.kind}`;
+      if (line.kind === "add" || line.kind === "del") {
+        row.tabIndex = 0;
+        row.title = "Click to select this line";
+        row.addEventListener("click", () => toggleDiffLineSelection(row, selectedAction, selectedLines, lineIndex));
+        row.addEventListener("keydown", (event) => {
+          if (event.key === " " || event.key === "Enter") {
+            event.preventDefault();
+            toggleDiffLineSelection(row, selectedAction, selectedLines, lineIndex);
+          }
+        });
+      }
+      row.append(
+        diffCell(line.oldLine === undefined ? "" : String(line.oldLine), "diffLineNumber"),
+        diffCell(line.newLine === undefined ? "" : String(line.newLine), "diffLineNumber"),
+        diffCell(diffPrefix(line.kind), "diffPrefix"),
+        diffCell(line.text, "diffLineText")
+      );
+      hunkElement.append(row);
+    });
+
+    return hunkElement;
+  }
+
+  function toggleDiffLineSelection(row, selectedAction, selectedLines, lineIndex) {
+    if (selectedLines.has(lineIndex)) {
+      selectedLines.delete(lineIndex);
+      row.classList.remove("selected");
+    } else {
+      selectedLines.add(lineIndex);
+      row.classList.add("selected");
+    }
+    const count = selectedLines.size;
+    selectedAction.disabled = count === 0;
+    selectedAction.querySelector("span").textContent = count === 1
+      ? selectedAction.textContent.replace(/Selected.*$/, "Selected")
+      : selectedAction.textContent.replace(/Selected.*$/, `Selected (${count})`);
+  }
+
+  function diffSummaryLine(label, value) {
+    const row = document.createElement("div");
+    row.className = "diffSummaryLine";
+    row.append(textSpan(label), textSpan(value));
+    return row;
+  }
+
+  function textBlock(text, className) {
+    const element = document.createElement("div");
+    element.className = className;
+    element.textContent = text;
+    return element;
+  }
+
+  function diffCell(text, className) {
+    const cell = document.createElement("span");
+    cell.className = className;
+    cell.textContent = text;
+    return cell;
+  }
+
+  function diffPrefix(kind) {
+    if (kind === "add") return "+";
+    if (kind === "del") return "-";
+    return " ";
   }
 
   function trimDiffForPane(diff, side) {
