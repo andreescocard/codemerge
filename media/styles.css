@@ -416,6 +416,11 @@ textarea:focus {
   color: var(--selection-fg);
 }
 
+.commitRow:focus-visible {
+  outline: 1px solid var(--blue);
+  outline-offset: -1px;
+}
+
 .graph {
   position: relative;
   z-index: 1;
@@ -476,6 +481,7 @@ textarea:focus {
   border-radius: 3px;
   background: var(--button-bg);
   color: var(--button-fg);
+  transition: opacity 120ms ease-out;
 }
 
 .commitRow:hover .commitAction,
@@ -920,6 +926,47 @@ textarea:focus {
   overflow: visible;
 }
 
+.blameView {
+  display: grid;
+  border: 1px solid var(--line-soft);
+  background: var(--vscode-editor-background);
+}
+
+.blameRow {
+  display: grid;
+  grid-template-columns: 52px 76px 130px minmax(160px, 0.75fr) minmax(220px, 1fr);
+  gap: 8px;
+  min-height: 22px;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  background: transparent;
+  color: var(--vscode-editor-foreground);
+  text-align: left;
+  font-family: var(--vscode-editor-font-family);
+}
+
+.blameRow:hover {
+  background: var(--row-hover);
+}
+
+.blameLineNo,
+.blameHash,
+.blameAuthor,
+.blameSummary,
+.blameText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+
+.blameLineNo,
+.blameHash,
+.blameAuthor,
+.blameSummary {
+  color: var(--muted);
+}
+
 .commitBox {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) auto;
@@ -940,6 +987,14 @@ textarea:focus {
   grid-template-columns: 130px 150px;
   grid-auto-rows: 24px;
   gap: 5px;
+}
+
+.amendToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  color: var(--muted);
 }
 
 .branchNameInput {
@@ -995,5 +1050,11 @@ textarea:focus {
   .commitPane,
   .contentPane {
     min-height: 320px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
   }
 }

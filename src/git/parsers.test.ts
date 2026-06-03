@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseBranches, parseCommits, parseConflictFiles, parseRemotes, parseStashes, parseStatus, parseSubmodules, parseTags } from "./parsers";
+import { parseBlame, parseBranches, parseCommits, parseConflictFiles, parseRemotes, parseStashes, parseStatus, parseSubmodules, parseTags } from "./parsers";
 import { formatMtime } from "../utils/format";
 
 describe("git parsers", () => {
@@ -66,6 +66,27 @@ describe("git parsers", () => {
       { path: "modules/missing", commit: "deadbeef", status: "notInitialized", description: "" },
       { path: "modules/modified", commit: "feedface", status: "modified", description: "v1.0" },
       { path: "modules/conflict", commit: "badcafe", status: "conflict", description: "" }
+    ]);
+  });
+
+  it("parses porcelain blame output", () => {
+    expect(parseBlame([
+      "0123456789abcdef0123456789abcdef01234567 1 1 1",
+      "author Ada",
+      "author-time 1780401600",
+      "summary Initial commit",
+      "filename file.txt",
+      "\tone"
+    ].join("\n"))).toEqual([
+      {
+        line: 1,
+        hash: "0123456789abcdef0123456789abcdef01234567",
+        shortHash: "01234567",
+        author: "Ada",
+        authorTime: 1780401600,
+        summary: "Initial commit",
+        text: "one"
+      }
     ]);
   });
 });

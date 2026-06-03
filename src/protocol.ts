@@ -11,6 +11,7 @@ export const MessageType = {
   Discard: "discard",
   DiscardAll: "discardAll",
   Commit: "commit",
+  Reset: "reset",
   Checkout: "checkout",
   CreateBranch: "createBranch",
   MergeBranch: "mergeBranch",
@@ -24,8 +25,10 @@ export const MessageType = {
   MarkResolved: "markResolved",
   AbortOperation: "abortOperation",
   ContinueOperation: "continueOperation",
+  Blame: "blame",
   Fetch: "fetch",
   Pull: "pull",
+  ForcePush: "forcePush",
   Push: "push",
   StashPush: "stashPush",
   StashApply: "stashApply",
@@ -51,6 +54,8 @@ export type WebviewMessage = {
   newName?: string;
   upstream?: string;
   hash?: string;
+  mode?: "soft" | "mixed" | "hard";
+  strategy?: "ffOnly" | "merge" | "rebase";
   ref?: string;
   tag?: string;
   remote?: string;
@@ -58,5 +63,6 @@ export type WebviewMessage = {
   hunkIndex?: number;
   lineIndexes?: number[];
   includeUntracked?: boolean;
+  amend?: boolean;
   message?: string;
 };

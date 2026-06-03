@@ -51,10 +51,12 @@
   const stageButton = document.getElementById("stageButton");
   const stageAllButton = document.getElementById("stageAllButton");
   const unstageButton = document.getElementById("unstageButton");
+  const blameButton = document.getElementById("blameButton");
   const discardButton = document.getElementById("discardButton");
   const discardAllButton = document.getElementById("discardAllButton");
   const commitForm = document.getElementById("commitForm");
   const commitMessage = document.getElementById("commitMessage");
+  const amendCommit = document.getElementById("amendCommit");
 
   restoreLayout();
   if (!document.documentElement.classList.contains("locationsCollapsed")) {
@@ -82,7 +84,7 @@
     }
   });
   fetchButton.addEventListener("click", () => post("fetch"));
-  pullButton.addEventListener("click", () => post("pull"));
+  pullButton.addEventListener("click", () => post("pull", { strategy: "ffOnly" }));
   pushButton.addEventListener("click", () => post("push"));
   moreButton.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -93,7 +95,11 @@
         { icon: "file", label: "Stash changes...", action: () => post("stashPush", { includeUntracked: false }) },
         { icon: "file", label: "Stash including untracked...", action: () => post("stashPush", { includeUntracked: true }) },
         { icon: "commit", label: "Create tag...", action: () => post("createTag") },
-        { icon: "link", label: "Add remote...", action: () => post("addRemote") }
+        { icon: "link", label: "Add remote...", action: () => post("addRemote") },
+        { icon: "download", label: "Pull fast-forward only", action: () => post("pull", { strategy: "ffOnly" }) },
+        { icon: "download", label: "Pull with merge", action: () => post("pull", { strategy: "merge" }) },
+        { icon: "download", label: "Pull with rebase", action: () => post("pull", { strategy: "rebase" }) },
+        { icon: "upload", label: "Force push with lease...", action: () => post("forcePush") }
       ]
     );
   });
@@ -110,6 +116,7 @@
   stageButton.addEventListener("click", () => selectedAction("stage"));
   stageAllButton.addEventListener("click", () => post("stageAll"));
   unstageButton.addEventListener("click", () => selectedAction("unstage"));
+  blameButton.addEventListener("click", () => selectedAction("blame"));
   discardButton.addEventListener("click", () => selectedAction("discard"));
   discardAllButton.addEventListener("click", () => post("discardAll"));
 
@@ -117,8 +124,9 @@
     event.preventDefault();
     const message = commitMessage.value.trim();
     if (message) {
-      post("commit", { message });
+      post("commit", { message, amend: amendCommit.checked });
       commitMessage.value = "";
+      amendCommit.checked = false;
     }
   });
 
@@ -140,6 +148,13 @@
       renderFiles(state.snapshot?.files || []);
     }
 
+    if (message.type === "blame") {
+      state.selectedPath = message.path;
+      diffTitle.textContent = `Blame: ${message.path}`;
+      renderBlame(message.path, message.blame || []);
+      renderFiles(state.snapshot?.files || []);
+    }
+
     if (message.type === "error") {
       setLoading(false);
       commitSummaryCount.textContent = "Refresh failed";
@@ -153,7 +168,9 @@
     repoRoot.textContent = snapshot.root;
     currentBranch.textContent = snapshot.currentBranch;
     changeCount.textContent = String(snapshot.files.length);
-    commitSummaryCount.textContent = `${snapshot.files.filter((file) => file.staged).length} staged file, ${snapshot.files.filter((file) => !file.staged).length} unstaged files`;
+    const stagedCount = snapshot.files.filter((file) => file.staged).length;
+    const unstagedCount = snapshot.files.length - stagedCount;
+    commitSummaryCount.textContent = `${plural(stagedCount, "staged file")}, ${plural(unstagedCount, "unstaged file")}`;
     renderBranches(snapshot);
     renderRemotes(snapshot.remotes || []);
     renderTags(snapshot.tags || []);
@@ -448,12 +465,31 @@
     }
 
     visibleCommits.forEach((commit) => {
+      const isSelected = commit.hash === state.selectedCommit;
       const row = document.createElement("article");
-      row.className = `commitRow ${commit.hash === state.selectedCommit ? "selected" : ""}`;
-      row.addEventListener("click", () => {
+      row.className = `commitRow ${isSelected ? "selected" : ""}`;
+      row.tabIndex = 0;
+      row.setAttribute("role", "button");
+      row.setAttribute("aria-pressed", String(isSelected));
+      row.setAttribute("aria-label", `Commit ${commit.shortHash}: ${commit.subject}`);
+      const selectCommit = () => {
         state.selectedCommit = commit.hash;
         renderSummary(commit);
         renderCommits(state.snapshot?.commits || []);
+      };
+      row.addEventListener("click", selectCommit);
+      row.addEventListener("keydown", (event) => {
+        if (event.target !== row) {
+          return;
+        }
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          selectCommit();
+        }
+      });
+      row.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        openCommitMenu(event, commit);
       });
 
       const graph = document.createElement("span");
@@ -483,7 +519,7 @@
 
       const meta = document.createElement("div");
       meta.className = "commitMeta";
-      meta.textContent = `${commit.shortHash}  ${commit.author}  ${commit.relativeDate}`;
+      meta.textContent = `${commit.shortHash} · ${commit.author} · ${commit.relativeDate}`;
 
       if (commit.refs) {
         const refs = document.createElement("div");
@@ -511,6 +547,16 @@
     summaryDate.textContent = commit.relativeDate || "-";
     summaryRefs.textContent = commit.refs || "-";
     summarySubject.textContent = commit.subject || "Commit selected.";
+  }
+
+  function openCommitMenu(event, commit) {
+    openLocationMenu(event, [
+      { icon: "merge", label: `Cherry-pick ${commit.shortHash}`, action: () => post("cherryPick", { hash: commit.hash }) },
+      { icon: "refresh", label: `Soft reset to ${commit.shortHash}`, action: () => post("reset", { hash: commit.hash, mode: "soft" }) },
+      { icon: "refresh", label: `Mixed reset to ${commit.shortHash}`, action: () => post("reset", { hash: commit.hash, mode: "mixed" }) },
+      { icon: "trash", label: `Hard reset to ${commit.shortHash}`, action: () => post("reset", { hash: commit.hash, mode: "hard" }) },
+      { icon: "copy", label: `Copy '${commit.hash}'`, action: () => navigator.clipboard?.writeText(commit.hash) }
+    ]);
   }
 
   function renderDiff(message) {
@@ -554,6 +600,41 @@
 
       diffOutput.append(sectionElement);
     });
+  }
+
+  function renderBlame(filePath, blame) {
+    diffBefore.replaceChildren(
+      diffSummaryLine("File", filePath),
+      diffSummaryLine("Lines", String(blame.length))
+    );
+    diffOutput.innerHTML = "";
+
+    if (!blame.length) {
+      diffOutput.append(empty("No blame data available"));
+      return;
+    }
+
+    const view = document.createElement("section");
+    view.className = "blameView";
+    blame.forEach((line) => {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "blameRow";
+      row.title = `${line.hash} ${line.summary}`;
+      row.addEventListener("click", () => {
+        commitFilter.value = line.shortHash;
+        renderCommits(state.snapshot?.commits || []);
+      });
+      row.append(
+        textSpan(String(line.line), "blameLineNo"),
+        textSpan(line.shortHash, "blameHash"),
+        textSpan(line.author || "-", "blameAuthor"),
+        textSpan(line.summary || "-", "blameSummary"),
+        textSpan(line.text, "blameText")
+      );
+      view.append(row);
+    });
+    diffOutput.append(view);
   }
 
   function renderHunk(kind, hunkIndex, hunk) {
@@ -682,10 +763,6 @@
       return side === "before" ? !line.startsWith("+") : !line.startsWith("-");
     });
     return filtered.join("\n");
-  }
-
-  function basename(filePath) {
-    return String(filePath || "").split(/[\\/]/).pop() || "File";
   }
 
   function empty(text) {
@@ -963,6 +1040,10 @@
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
+  }
+
+  function plural(count, noun) {
+    return `${count} ${noun}${count === 1 ? "" : "s"}`;
   }
 
   function icon(name) {

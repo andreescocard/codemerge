@@ -70,6 +70,21 @@ describe("GitClient", () => {
     await client.discard("file.txt");
   });
 
+  it("amends the last commit message", async () => {
+    await writeFile(path.join(repo, "amend.txt"), "amend\n", "utf8");
+    await client.stage("amend.txt");
+    await client.commit("amend target");
+
+    await client.amendCommit("amended target");
+    expect((await client.commits())[0]).toMatchObject({ subject: "amended target" });
+  });
+
+  it("reads blame data for a tracked file", async () => {
+    const blame = await client.blame("file.txt");
+    expect(blame.length).toBeGreaterThan(0);
+    expect(blame[0]).toMatchObject({ author: "CodeMerge Tests" });
+  });
+
   it("detects and resolves merge conflicts", async () => {
     await writeFile(path.join(repo, "conflict.txt"), "base\n", "utf8");
     await client.stage("conflict.txt");

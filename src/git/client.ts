@@ -3,12 +3,14 @@ import { access, stat } from "node:fs/promises";
 import * as path from "node:path";
 import { mapWithConcurrency } from "../utils/async";
 import { buildSelectedLinesPatch, parseDiff, type DiffSection, type DiffSectionKind } from "./diff";
-import { parseBranches, parseCommits, parseConflictFiles, parseRemotes, parseStashes, parseStatus, parseSubmodules, parseTags, withMtime } from "./parsers";
-import type { Branch, Commit, ConflictFile, GitFile, MergeState, Remote, Snapshot, Stash, Submodule, Tag } from "./types";
+import { parseBlame, parseBranches, parseCommits, parseConflictFiles, parseRemotes, parseStashes, parseStatus, parseSubmodules, parseTags, withMtime } from "./parsers";
+import type { BlameLine, Branch, Commit, ConflictFile, GitFile, MergeState, Remote, Snapshot, Stash, Submodule, Tag } from "./types";
 
 const gitTimeoutMs = 20_000;
 const gitNetworkTimeoutMs = 120_000;
 const maxStatusFilesWithMtime = 2_000;
+export type PullStrategy = "ffOnly" | "merge" | "rebase";
+export type ResetMode = "soft" | "mixed" | "hard";
 
 export class GitClient {
   constructor(private readonly cwd: string) {}
@@ -209,6 +211,10 @@ export class GitClient {
     return sections;
   }
 
+  async blame(filePath: string): Promise<BlameLine[]> {
+    return parseBlame(await this.git(["blame", "--porcelain", "--", filePath], gitTimeoutMs));
+  }
+
   async stageHunk(filePath: string, hunkIndex: number): Promise<string> {
     const patch = await this.patchForHunk(filePath, "unstaged", hunkIndex);
     return this.gitWithInput(["apply", "--cached", "--unidiff-zero", "-"], patch);
@@ -251,6 +257,14 @@ export class GitClient {
 
   commit(message: string): Promise<string> {
     return this.git(["commit", "-m", message]);
+  }
+
+  amendCommit(message: string): Promise<string> {
+    return this.git(["commit", "--amend", "-m", message]);
+  }
+
+  reset(mode: ResetMode, ref: string): Promise<string> {
+    return this.git(["reset", `--${mode}`, ref]);
   }
 
   checkout(branch: string): Promise<string> {
@@ -327,15 +341,16 @@ export class GitClient {
     return this.git(["fetch", "--all", "--prune"], gitNetworkTimeoutMs);
   }
 
-  async pull(): Promise<string> {
+  async pull(strategy: PullStrategy = "ffOnly"): Promise<string> {
     const branch = await this.currentBranch();
     if (branch === "detached") {
       throw new Error("Cannot pull while HEAD is detached.");
     }
 
+    const strategyArgs = pullStrategyArgs(strategy);
     const upstream = await this.tryGit(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"]);
     if (upstream.trim()) {
-      return this.git(["pull", "--ff-only"], gitNetworkTimeoutMs);
+      return this.git(["pull", ...strategyArgs], gitNetworkTimeoutMs);
     }
 
     const originBranch = await this.tryGit(["show-ref", "--verify", `refs/remotes/origin/${branch}`]);
@@ -345,11 +360,15 @@ export class GitClient {
       );
     }
 
-    return this.git(["pull", "--ff-only", "origin", branch], gitNetworkTimeoutMs);
+    return this.git(["pull", ...strategyArgs, "origin", branch], gitNetworkTimeoutMs);
   }
 
   push(): Promise<string> {
     return this.git(["push"], gitNetworkTimeoutMs);
+  }
+
+  forcePushWithLease(): Promise<string> {
+    return this.git(["push", "--force-with-lease"], gitNetworkTimeoutMs);
   }
 
   private async patchForHunk(filePath: string, kind: DiffSectionKind, hunkIndex: number): Promise<string> {
@@ -433,5 +452,17 @@ export class GitClient {
     } catch {
       return false;
     }
+  }
+}
+
+function pullStrategyArgs(strategy: PullStrategy): string[] {
+  switch (strategy) {
+    case "merge":
+      return ["--no-rebase"];
+    case "rebase":
+      return ["--rebase"];
+    case "ffOnly":
+    default:
+      return ["--ff-only"];
   }
 }

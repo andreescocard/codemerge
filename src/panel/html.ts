@@ -119,6 +119,7 @@ export function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri) {
               <input id="newBranchName" class="branchNameInput" type="text" placeholder="New branch">
               <select id="sourceBranchSelect" title="Create from branch"></select>
               <button id="createBranchButton" type="button" title="Create branch from selected source"><svg><use href="#icon-branch"></use></svg>Create branch</button>
+              <label class="amendToggle"><input id="amendCommit" type="checkbox">Amend</label>
               <button type="submit"><svg><use href="#icon-check"></use></svg>Commit staged</button>
             </div>
           </form>
@@ -154,6 +155,7 @@ export function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri) {
             <div class="fileActions">
               <button id="stageButton"><svg><use href="#icon-check"></use></svg>Stage</button>
               <button id="unstageButton"><svg><use href="#icon-refresh"></use></svg>Unstage</button>
+              <button id="blameButton"><svg><use href="#icon-eye"></use></svg>Blame</button>
               <button id="discardButton"><svg><use href="#icon-trash"></use></svg>Discard</button>
             </div>
           </div>

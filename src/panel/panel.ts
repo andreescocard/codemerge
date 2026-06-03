@@ -119,8 +119,25 @@ export class CodeMergePanel {
         }
         case MessageType.Commit:
           if (message.message?.trim()) {
-            await this.client.commit(message.message.trim());
+            if (message.amend) {
+              await this.client.amendCommit(message.message.trim());
+            } else {
+              await this.client.commit(message.message.trim());
+            }
             await this.refresh();
+          }
+          break;
+        case MessageType.Reset:
+          if (message.hash && message.mode) {
+            const label = `Reset --${message.mode} to ${message.hash.slice(0, 8)}?`;
+            const detail = message.mode === "hard"
+              ? "Hard reset discards working tree and index changes."
+              : "This moves the current branch to the selected commit.";
+            const confirm = await vscode.window.showWarningMessage(label, { modal: message.mode === "hard", detail }, "Reset");
+            if (confirm === "Reset") {
+              await this.client.reset(message.mode, message.hash);
+              await this.refresh();
+            }
           }
           break;
         case MessageType.Checkout:
@@ -243,18 +260,39 @@ export class CodeMergePanel {
           await this.client.continueOperation();
           await this.refresh();
           break;
+        case MessageType.Blame:
+          if (message.path) {
+            const blame = await this.client.blame(message.path);
+            this.panel.webview.postMessage({ type: "blame", path: message.path, blame });
+          }
+          break;
         case MessageType.Fetch:
           await this.client.fetch();
           await this.refresh();
           break;
         case MessageType.Pull:
-          await this.client.pull();
+          await this.client.pull(message.strategy);
           await this.refresh();
           break;
         case MessageType.Push:
           await this.client.push();
           await this.refresh();
           break;
+        case MessageType.ForcePush: {
+          const confirm = await vscode.window.showWarningMessage(
+            "Force push the current branch with --force-with-lease?",
+            {
+              modal: true,
+              detail: "This refuses to overwrite remote work you have not fetched, but it can still rewrite remote history."
+            },
+            "Force Push"
+          );
+          if (confirm === "Force Push") {
+            await this.client.forcePushWithLease();
+            await this.refresh();
+          }
+          break;
+        }
         case MessageType.StashPush: {
           const stashMessage = await vscode.window.showInputBox({
             prompt: "Stash message",

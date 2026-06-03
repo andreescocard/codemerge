@@ -54,6 +54,16 @@ export type ConflictFile = {
   type: string;
 };
 
+export type BlameLine = {
+  line: number;
+  hash: string;
+  shortHash: string;
+  author: string;
+  authorTime: number;
+  summary: string;
+  text: string;
+};
+
 export type MergeState = {
   active: boolean;
   operation?: "merge" | "cherryPick" | "rebase";

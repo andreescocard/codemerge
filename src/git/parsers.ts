@@ -1,4 +1,4 @@
-import type { Branch, Commit, ConflictFile, GitFile, Remote, Stash, Submodule, Tag } from "./types";
+import type { BlameLine, Branch, Commit, ConflictFile, GitFile, Remote, Stash, Submodule, Tag } from "./types";
 import { formatMtime } from "../utils/format";
 
 export type StatusEntry = Omit<GitFile, "mtimeMs" | "mtimeLabel">;
@@ -131,6 +131,56 @@ export function parseSubmodules(output: string): Submodule[] {
       };
     })
     .filter((submodule) => submodule.path);
+}
+
+export function parseBlame(output: string): BlameLine[] {
+  const lines: BlameLine[] = [];
+  const commits = new Map<string, { author: string; authorTime: number; summary: string }>();
+  let currentHash = "";
+  let currentLine = 0;
+  let currentMeta = { author: "", authorTime: 0, summary: "" };
+
+  output.split(/\r?\n/).forEach((line) => {
+    const header = line.match(/^([0-9a-f]{40})\s+\d+\s+(\d+)(?:\s+\d+)?$/i);
+    if (header) {
+      currentHash = header[1];
+      currentLine = Number(header[2]);
+      currentMeta = commits.get(currentHash) ?? { author: "", authorTime: 0, summary: "" };
+      return;
+    }
+
+    if (line.startsWith("author ")) {
+      currentMeta = { ...currentMeta, author: line.slice("author ".length) };
+      commits.set(currentHash, currentMeta);
+      return;
+    }
+
+    if (line.startsWith("author-time ")) {
+      currentMeta = { ...currentMeta, authorTime: Number(line.slice("author-time ".length)) };
+      commits.set(currentHash, currentMeta);
+      return;
+    }
+
+    if (line.startsWith("summary ")) {
+      currentMeta = { ...currentMeta, summary: line.slice("summary ".length) };
+      commits.set(currentHash, currentMeta);
+      return;
+    }
+
+    if (line.startsWith("\t")) {
+      lines.push({
+        line: currentLine,
+        hash: currentHash,
+        shortHash: currentHash.slice(0, 8),
+        author: currentMeta.author,
+        authorTime: currentMeta.authorTime,
+        summary: currentMeta.summary,
+        text: line.slice(1)
+      });
+    }
+  });
+
+  return lines;
 }
 
 function submoduleStatus(marker: string): Submodule["status"] {
