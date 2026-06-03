@@ -310,9 +310,33 @@ export function renderSidebarHtml(webview: vscode.Webview) {
       color: var(--vscode-list-activeSelectionForeground);
     }
     .recentItem .name {
+      flex: 1 1 auto;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+    .recentRow {
+      display: flex;
+      align-items: center;
+    }
+    .recentRemove {
+      flex: 0 0 auto;
+      width: 24px;
+      min-height: 24px;
+      padding: 0;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--vscode-descriptionForeground);
+      opacity: 0;
+    }
+    .recentRow:hover .recentRemove,
+    .recentRemove:focus-visible {
+      opacity: 1;
+    }
+    .recentRemove:hover {
+      color: var(--vscode-foreground);
+      background: var(--vscode-toolbar-hoverBackground, var(--vscode-list-hoverBackground));
     }
   </style>
 </head>
@@ -321,6 +345,7 @@ export function renderSidebarHtml(webview: vscode.Webview) {
     <symbol id="icon-repo" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM8 9h8M8 13h5"/></symbol>
     <symbol id="icon-folder" viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v10H3z"/></symbol>
     <symbol id="icon-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 0 1-14 5M4 12a8 8 0 0 1 14-5M18 3v4h-4M6 21v-4h4"/></symbol>
+    <symbol id="icon-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
   </svg>
   <section class="sidebarShell">
     <h2><svg><use href="#icon-repo"></use></svg>CodeMerge</h2>
@@ -350,6 +375,13 @@ export function renderSidebarHtml(webview: vscode.Webview) {
     document.getElementById("refreshButton").addEventListener("click", () => vscode.postMessage({ type: "refresh" }));
     const recent = document.getElementById("recent");
     const recentList = document.getElementById("recentList");
+    function iconSvg(id) {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+      use.setAttribute("href", id);
+      svg.appendChild(use);
+      return svg;
+    }
     function renderRecent(entries, active) {
       recentList.textContent = "";
       const list = Array.isArray(entries) ? entries : [];
@@ -360,22 +392,33 @@ export function renderSidebarHtml(webview: vscode.Webview) {
       recent.hidden = false;
       for (const entry of list) {
         const li = document.createElement("li");
+        const row = document.createElement("div");
+        row.className = "recentRow";
+
         const button = document.createElement("button");
         button.className = "recentItem" + (entry.path === active ? " active" : "");
         button.title = entry.path;
-        const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
-        use.setAttribute("href", "#icon-repo");
-        icon.appendChild(use);
         const name = document.createElement("span");
         name.className = "name";
         name.textContent = entry.name;
-        button.append(icon, name);
+        button.append(iconSvg("#icon-repo"), name);
         button.addEventListener("click", () => {
           if (entry.path === active) return;
           vscode.postMessage({ type: "selectRepository", root: entry.path });
         });
-        li.appendChild(button);
+
+        const remove = document.createElement("button");
+        remove.className = "recentRemove";
+        remove.title = "Remove from recent";
+        remove.setAttribute("aria-label", "Remove " + entry.name + " from recent");
+        remove.appendChild(iconSvg("#icon-close"));
+        remove.addEventListener("click", (event) => {
+          event.stopPropagation();
+          vscode.postMessage({ type: "removeRepository", root: entry.path });
+        });
+
+        row.append(button, remove);
+        li.appendChild(row);
         recentList.appendChild(li);
       }
     }

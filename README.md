@@ -30,6 +30,7 @@ all without ever leaving the editor.
 - [Usage](#-usage)
 - [Branch Menu](#-branch-menu)
 - [Development](#-development)
+- [Testing](#-testing)
 - [Roadmap](#-roadmap)
 - [Support](#-support)
 - [License](#-license)
@@ -46,10 +47,17 @@ all without ever leaving the editor.
 | ↔️ | **Resizable columns** — Locations, Commits, and diff panes |
 | 🕒 | **Smart sorting** — changed files ordered by most recent modification by default |
 | 🔃 | **Flexible sort** — by recent, oldest, path, status, or staged state |
-| 🌿 | **Full branch ops** — checkout, create, merge, delete, rename, upstream, copy, hide/show, search |
+| 🌿 | **Full branch ops** — checkout, create, merge, rebase, delete, rename, upstream, copy, hide/show, search |
 | 🖱️ | **Context menu** — branch right-click menu modeled after Sublime Merge |
-| 📜 | **Commit history** — graph rail, refs, author, relative time, and cherry-pick |
-| ⚡ | **Staging actions** — stage, unstage, discard, commit, fetch, pull, push |
+| 📜 | **Commit history** — graph rail, refs, author, relative time, pagination, and cherry-pick |
+| ⚡ | **Staging actions** — stage, unstage, discard, reset, and commit (with amend) |
+| 🔬 | **Hunk & line staging** — stage or unstage individual hunks and selected lines |
+| 📦 | **Stash workflow** — push, apply, pop, drop, and show stashes |
+| 🏷️ | **Tags** — create, delete, and push tags |
+| 🛰️ | **Remotes** — add, remove, rename, and set remote URLs |
+| ⚔️ | **Conflict-aware** — use ours/theirs, mark resolved, continue/skip/abort merges, rebases, cherry-picks |
+| 🔭 | **Blame** — line-level authorship for any tracked file |
+| 🔄 | **Sync** — fetch, pull, push, and force-push |
 | 🎨 | **Theme-aware UI** — built on VS Code color tokens |
 
 ---
@@ -119,6 +127,7 @@ Right-click a branch in **Locations** to access:
 
 - ✅ Checkout branch
 - 🔀 Merge branch into the current branch
+- 🪡 Rebase current branch onto the selected branch
 - 🗑️ Delete branch
 - ✏️ Rename branch
 - 📋 Copy branch name
@@ -136,7 +145,9 @@ Right-click a branch in **Locations** to access:
 |---|---|
 | Install dependencies | `npm install` |
 | Compile | `npm run compile` |
+| Watch (rebuild on save) | `npm run watch` |
 | Type checks | `npm run lint` |
+| Run tests | `npm test` |
 | Package a VSIX | `npm run package` |
 
 **Debug locally:**
@@ -145,14 +156,33 @@ Right-click a branch in **Locations** to access:
 2. Press `F5`.
 3. In the Extension Development Host, open CodeMerge from the Activity Bar.
 
+**Layout:** the extension host lives in `src/` — `git/` (client, diff, graph, status/log parsers, types),
+`panel/` (full workbench panel + HTML), `utils/`, `protocol.ts` (the webview message contract), and
+`extension.ts` (entry point). The webview client is `media/main.js` + `media/styles.css`.
+
+---
+
+## 🧪 Testing
+
+Unit tests run on [Vitest](https://vitest.dev/) and cover the pure Git helpers — diff, graph, and the
+status/log parsers:
+
+```powershell
+npm test            # vitest run (one-shot)
+```
+
+Extension behavior is verified manually in the Extension Development Host (`F5`).
+
 ---
 
 ## 🗺️ Roadmap
 
-- [ ] Richer diff rendering with line-level controls
-- [ ] Remote branch grouping and tag/stash providers
-- [ ] Commit detail actions and file-level history
-- [ ] Conflict-aware merge and cherry-pick flows
+- [x] Line-level diff controls (hunk and line staging)
+- [x] Tag and stash providers
+- [x] File-level history (blame)
+- [x] Conflict-aware merge, rebase, and cherry-pick flows
+- [ ] Richer remote branch grouping
+- [ ] Commit detail actions
 - [ ] Optional graph density controls
 
 ---

@@ -66,7 +66,7 @@ class CodeMergeSidebarProvider implements vscode.WebviewViewProvider {
     );
     webviewView.onDidDispose(() => this.disposeWatcher());
     webviewView.webview.onDidReceiveMessage(
-      async (message: { type: "open" | "openRepository" | "refresh" | "selectRepository"; root?: string }) => {
+      async (message: { type: "open" | "openRepository" | "refresh" | "selectRepository" | "removeRepository"; root?: string }) => {
         if (message.type === "open") {
           await vscode.commands.executeCommand("codemerge.open");
         }
@@ -87,6 +87,10 @@ class CodeMergeSidebarProvider implements vscode.WebviewViewProvider {
             await removeRecentRoot(this.context, message.root);
             vscode.window.showErrorMessage(`No longer a Git repository: ${message.root}`);
           }
+          await this.updateSidebar(webviewView);
+        }
+        if (message.type === "removeRepository" && message.root) {
+          await removeRecentRoot(this.context, message.root);
           await this.updateSidebar(webviewView);
         }
         if (message.type === "refresh") {
