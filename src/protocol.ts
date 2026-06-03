@@ -1,5 +1,6 @@
 export const MessageType = {
   Refresh: "refresh",
+  LoadMoreCommits: "loadMoreCommits",
   SelectFile: "selectFile",
   Stage: "stage",
   StageHunk: "stageHunk",

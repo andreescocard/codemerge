@@ -11,15 +11,16 @@ const gitNetworkTimeoutMs = 120_000;
 const maxStatusFilesWithMtime = 2_000;
 export type PullStrategy = "ffOnly" | "merge" | "rebase";
 export type ResetMode = "soft" | "mixed" | "hard";
+const defaultCommitLimit = 80;
 
 export class GitClient {
   constructor(private readonly cwd: string) {}
 
-  async snapshot(): Promise<Snapshot> {
-    const [branch, branches, commits, files, stashes, tags, remotes, submodules, conflicts, mergeState] = await Promise.all([
+  async snapshot(commitLimit = defaultCommitLimit): Promise<Snapshot> {
+    const [branch, branches, commitWindow, files, stashes, tags, remotes, submodules, conflicts, mergeState] = await Promise.all([
       this.currentBranch(),
       this.branches(),
-      this.commits(),
+      this.commitWindow(commitLimit),
       this.status(),
       this.stashes(),
       this.tags(),
@@ -32,8 +33,10 @@ export class GitClient {
     return {
       root: this.cwd,
       currentBranch: branch,
+      detached: !branch,
       branches,
-      commits,
+      commits: commitWindow.commits,
+      hasMoreCommits: commitWindow.hasMore,
       files,
       stashes,
       tags,
@@ -45,7 +48,7 @@ export class GitClient {
   }
 
   async currentBranch(): Promise<string> {
-    return (await this.git(["branch", "--show-current"])).trim() || "detached";
+    return (await this.git(["branch", "--show-current"])).trim();
   }
 
   async branches(): Promise<Branch[]> {
@@ -53,7 +56,11 @@ export class GitClient {
     return parseBranches(output);
   }
 
-  async commits(): Promise<Commit[]> {
+  async commits(limit = defaultCommitLimit): Promise<Commit[]> {
+    return (await this.commitWindow(limit)).commits;
+  }
+
+  async commitWindow(limit = defaultCommitLimit): Promise<{ commits: Commit[]; hasMore: boolean }> {
     const format = "%H%x1f%h%x1f%P%x1f%D%x1f%s%x1f%an%x1f%cr";
     const output = await this.git([
       "log",
@@ -62,10 +69,14 @@ export class GitClient {
       "--date=relative",
       `--pretty=format:${format}`,
       "-n",
-      "80"
+      String(limit + 1)
     ]);
+    const commits = parseCommits(output);
 
-    return parseCommits(output);
+    return {
+      commits: commits.slice(0, limit),
+      hasMore: commits.length > limit
+    };
   }
 
   async status(): Promise<GitFile[]> {
@@ -359,7 +370,7 @@ export class GitClient {
 
   async pull(strategy: PullStrategy = "ffOnly"): Promise<string> {
     const branch = await this.currentBranch();
-    if (branch === "detached") {
+    if (!branch) {
       throw new Error("Cannot pull while HEAD is detached.");
     }
 

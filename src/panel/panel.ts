@@ -4,7 +4,9 @@ import { MessageType, type WebviewMessage } from "../protocol";
 import { renderHtml } from "./html";
 export class CodeMergePanel {
   private static currentPanel: CodeMergePanel | undefined;
+  private static readonly commitPageSize = 80;
   private readonly client: GitClient;
+  private commitLimit = CodeMergePanel.commitPageSize;
   private selectedFile: string | undefined;
   private refreshRequest = 0;
 
@@ -46,6 +48,11 @@ export class CodeMergePanel {
     try {
       switch (message.type) {
         case MessageType.Refresh:
+          this.commitLimit = CodeMergePanel.commitPageSize;
+          await this.refresh();
+          break;
+        case MessageType.LoadMoreCommits:
+          this.commitLimit += CodeMergePanel.commitPageSize;
           await this.refresh();
           break;
         case MessageType.SelectFile:
@@ -157,7 +164,7 @@ export class CodeMergePanel {
             const branch = message.branch;
             const current = await this.client.currentBranch();
             const confirm = await vscode.window.showWarningMessage(
-              `Merge ${branch} into ${current}?`,
+              `Merge ${branch} into ${current || "detached HEAD"}?`,
               { modal: true },
               "Merge"
             );
@@ -172,7 +179,7 @@ export class CodeMergePanel {
             const branch = message.branch;
             const current = await this.client.currentBranch();
             const confirm = await vscode.window.showWarningMessage(
-              `Rebase ${current} onto ${branch}?`,
+              `Rebase ${current || "detached HEAD"} onto ${branch}?`,
               { modal: true },
               "Rebase"
             );
@@ -465,7 +472,7 @@ export class CodeMergePanel {
     this.panel.webview.postMessage({ type: "loading", loading: true });
 
     try {
-      const snapshot = await this.client.snapshot();
+      const snapshot = await this.client.snapshot(this.commitLimit);
       if (request !== this.refreshRequest) {
         return;
       }

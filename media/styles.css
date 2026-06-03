@@ -479,6 +479,24 @@ textarea:focus {
   opacity: 1;
 }
 
+.loadMoreCommits {
+  width: 100%;
+  min-height: 34px;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--surface);
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.loadMoreCommits:hover {
+  background: var(--row-hover);
+  color: var(--text);
+}
+
 .stripTab,
 .detailTab {
   display: flex;

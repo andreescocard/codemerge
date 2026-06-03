@@ -81,8 +81,10 @@ export type MergeState = {
 export type Snapshot = {
   root: string;
   currentBranch: string;
+  detached: boolean;
   branches: Branch[];
   commits: Commit[];
+  hasMoreCommits: boolean;
   files: GitFile[];
   stashes: Stash[];
   tags: Tag[];

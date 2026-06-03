@@ -36,6 +36,19 @@ describe("GitClient", () => {
     expect((await client.commits())[0]).toMatchObject({ subject: "initial", author: "CodeMerge Tests" });
   });
 
+  it("reports whether more commits are available for a commit window", async () => {
+    await writeFile(path.join(repo, "window-a.txt"), "a\n", "utf8");
+    await client.stage("window-a.txt");
+    await client.commit("window a");
+    await writeFile(path.join(repo, "window-b.txt"), "b\n", "utf8");
+    await client.stage("window-b.txt");
+    await client.commit("window b");
+
+    const window = await client.commitWindow(1);
+    expect(window.commits).toHaveLength(1);
+    expect(window.hasMore).toBe(true);
+  });
+
   it("stages and commits working tree changes", async () => {
     await writeFile(path.join(repo, "file.txt"), "one\ntwo\n", "utf8");
     expect(await client.status()).toMatchObject([{ path: "file.txt", index: " ", workingTree: "M", staged: false }]);

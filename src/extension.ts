@@ -81,7 +81,7 @@ class CodeMergeSidebarProvider implements vscode.WebviewViewProvider {
         type: "state",
         state: {
           root,
-          branch: snapshot.currentBranch,
+          branch: snapshot.detached ? "detached" : snapshot.currentBranch,
           changed: snapshot.files.length,
           commits: snapshot.commits.length,
           ready: true

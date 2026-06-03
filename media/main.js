@@ -203,7 +203,7 @@
   function renderSnapshot(snapshot) {
     state.diffCache = {};
     repoRoot.textContent = snapshot.root;
-    currentBranch.textContent = snapshot.currentBranch;
+    currentBranch.textContent = snapshot.detached ? "detached" : snapshot.currentBranch;
     changeCount.textContent = String(snapshot.files.length);
     const stagedCount = snapshot.files.filter((file) => file.staged).length;
     const unstagedCount = snapshot.files.length - stagedCount;
@@ -688,6 +688,15 @@
       row.append(graph, body);
       commitList.append(row);
     });
+
+    if (!query && state.snapshot?.hasMoreCommits) {
+      const loadMore = document.createElement("button");
+      loadMore.type = "button";
+      loadMore.className = "loadMoreCommits";
+      loadMore.append(icon("refresh"), textSpan("Load more commits"));
+      loadMore.addEventListener("click", () => post("loadMoreCommits"));
+      commitList.append(loadMore);
+    }
   }
 
   function selectedAction(type) {
@@ -1059,7 +1068,7 @@
 
   function openBranchMenu(event, branch) {
     closeMenus();
-    const current = state.snapshot?.currentBranch || "current";
+    const current = state.snapshot?.detached ? "detached HEAD" : state.snapshot?.currentBranch || "current";
     const items = [
       {
         icon: "branch",
