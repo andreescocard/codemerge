@@ -589,6 +589,59 @@ textarea:focus {
   border-bottom: 1px solid var(--line-soft);
 }
 
+.conflictBanner {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+}
+
+.conflictBanner[hidden] {
+  display: none;
+}
+
+.conflictHeader,
+.conflictRow,
+.conflictActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.conflictHeader {
+  justify-content: space-between;
+}
+
+.conflictTitle {
+  font-weight: 700;
+}
+
+.conflictCount,
+.conflictType,
+.conflictEmpty {
+  color: var(--muted);
+}
+
+.conflictList {
+  display: grid;
+  gap: 4px;
+}
+
+.conflictRow {
+  flex-wrap: wrap;
+}
+
+.conflictFile {
+  min-width: 260px;
+  justify-content: flex-start;
+}
+
+.conflictRow button,
+.conflictActions button {
+  border-radius: 3px;
+}
+
 .summaryMenu {
   position: absolute;
   top: 6px;
@@ -843,6 +896,12 @@ textarea:focus {
   outline-offset: -1px;
   background: var(--vscode-list-activeSelectionBackground, var(--blue-soft));
   color: var(--vscode-list-activeSelectionForeground, var(--selection-fg));
+}
+
+.diffLine.conflictMarker {
+  background: color-mix(in srgb, var(--danger) 22%, var(--surface));
+  color: var(--danger);
+  font-weight: 700;
 }
 
 .diffLineNumber,

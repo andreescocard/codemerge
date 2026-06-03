@@ -137,14 +137,15 @@ export class CodeMergePanel {
           break;
         case MessageType.MergeBranch:
           if (message.branch) {
+            const branch = message.branch;
             const current = await this.client.currentBranch();
             const confirm = await vscode.window.showWarningMessage(
-              `Merge ${message.branch} into ${current}?`,
+              `Merge ${branch} into ${current}?`,
               { modal: true },
               "Merge"
             );
             if (confirm === "Merge") {
-              await this.client.mergeBranch(message.branch);
+              await this.runConflictAwareOperation(() => this.client.mergeBranch(branch));
               await this.refresh();
             }
           }
@@ -196,16 +197,51 @@ export class CodeMergePanel {
           break;
         case MessageType.CherryPick:
           if (message.hash) {
+            const hash = message.hash;
             const confirm = await vscode.window.showWarningMessage(
-              `Cherry-pick ${message.hash.slice(0, 8)} onto the current branch?`,
+              `Cherry-pick ${hash.slice(0, 8)} onto the current branch?`,
               { modal: true },
               "Cherry-pick"
             );
             if (confirm === "Cherry-pick") {
-              await this.client.cherryPick(message.hash);
+              await this.runConflictAwareOperation(() => this.client.cherryPick(hash));
               await this.refresh();
             }
           }
+          break;
+        case MessageType.UseOurs:
+          if (message.path) {
+            await this.client.useOurs(message.path);
+            await this.refresh(message.path);
+          }
+          break;
+        case MessageType.UseTheirs:
+          if (message.path) {
+            await this.client.useTheirs(message.path);
+            await this.refresh(message.path);
+          }
+          break;
+        case MessageType.MarkResolved:
+          if (message.path) {
+            await this.client.markResolved(message.path);
+            await this.refresh(message.path);
+          }
+          break;
+        case MessageType.AbortOperation: {
+          const confirm = await vscode.window.showWarningMessage(
+            "Abort the active Git operation?",
+            { modal: true },
+            "Abort"
+          );
+          if (confirm === "Abort") {
+            await this.client.abortOperation();
+            await this.refresh();
+          }
+          break;
+        }
+        case MessageType.ContinueOperation:
+          await this.client.continueOperation();
+          await this.refresh();
           break;
         case MessageType.Fetch:
           await this.client.fetch();
@@ -405,5 +441,18 @@ export class CodeMergePanel {
     const diff = await this.client.diff(filePath);
     const structuredDiff = await this.client.structuredDiff(filePath);
     this.panel.webview.postMessage({ type: "diff", path: filePath, diff, structuredDiff });
+  }
+
+  private async runConflictAwareOperation(operation: () => Promise<string>): Promise<void> {
+    try {
+      await operation();
+    } catch (error) {
+      const state = await this.client.mergeState();
+      if (state.active) {
+        vscode.window.showWarningMessage("Git operation stopped for conflict resolution.");
+        return;
+      }
+      throw error;
+    }
   }
 }

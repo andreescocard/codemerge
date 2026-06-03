@@ -67,6 +67,33 @@ describe("GitClient", () => {
 
     await client.unstageLines("file.txt", 0, [1]);
     expect(await client.status()).toMatchObject([{ path: "file.txt", index: " ", workingTree: "M", staged: false }]);
+    await client.discard("file.txt");
+  });
+
+  it("detects and resolves merge conflicts", async () => {
+    await writeFile(path.join(repo, "conflict.txt"), "base\n", "utf8");
+    await client.stage("conflict.txt");
+    await client.commit("add conflict base");
+
+    await git(["checkout", "-b", "conflict-other"]);
+    await writeFile(path.join(repo, "conflict.txt"), "theirs\n", "utf8");
+    await client.stage("conflict.txt");
+    await client.commit("theirs change");
+
+    await git(["checkout", "main"]);
+    await writeFile(path.join(repo, "conflict.txt"), "ours\n", "utf8");
+    await client.stage("conflict.txt");
+    await client.commit("ours change");
+
+    await expect(client.mergeBranch("conflict-other")).rejects.toThrow();
+    expect(await client.mergeState()).toEqual({ active: true, operation: "merge" });
+    expect(await client.conflicts()).toEqual([
+      { path: "conflict.txt", index: "U", workingTree: "U", type: "both modified" }
+    ]);
+
+    await client.useOurs("conflict.txt");
+    expect(await client.conflicts()).toEqual([]);
+    await client.abortOperation();
   });
 
   async function git(args: string[]) {

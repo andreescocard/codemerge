@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseBranches, parseCommits, parseRemotes, parseStashes, parseStatus, parseSubmodules, parseTags } from "./parsers";
+import { parseBranches, parseCommits, parseConflictFiles, parseRemotes, parseStashes, parseStatus, parseSubmodules, parseTags } from "./parsers";
 import { formatMtime } from "../utils/format";
 
 describe("git parsers", () => {
@@ -9,6 +9,14 @@ describe("git parsers", () => {
       { path: "README.md", index: "A", workingTree: " ", staged: true },
       { path: "new.txt", index: "R", workingTree: " ", staged: true },
       { path: "scratch.txt", index: "?", workingTree: "?", staged: false }
+    ]);
+  });
+
+  it("parses unmerged conflict entries", () => {
+    expect(parseConflictFiles("UU file.txt\nAA added.txt\nDU deleted-by-us.txt\n M regular.txt\n")).toEqual([
+      { path: "file.txt", index: "U", workingTree: "U", type: "both modified" },
+      { path: "added.txt", index: "A", workingTree: "A", type: "both added" },
+      { path: "deleted-by-us.txt", index: "D", workingTree: "U", type: "deleted by us" }
     ]);
   });
 

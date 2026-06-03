@@ -47,6 +47,18 @@ export type Submodule = {
   description: string;
 };
 
+export type ConflictFile = {
+  path: string;
+  index: string;
+  workingTree: string;
+  type: string;
+};
+
+export type MergeState = {
+  active: boolean;
+  operation?: "merge" | "cherryPick" | "rebase";
+};
+
 export type Snapshot = {
   root: string;
   currentBranch: string;
@@ -57,4 +69,6 @@ export type Snapshot = {
   tags: Tag[];
   remotes: Remote[];
   submodules: Submodule[];
+  conflicts: ConflictFile[];
+  mergeState: MergeState;
 };

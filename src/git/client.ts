@@ -1,10 +1,10 @@
 import { execFile } from "node:child_process";
-import { stat } from "node:fs/promises";
+import { access, stat } from "node:fs/promises";
 import * as path from "node:path";
 import { mapWithConcurrency } from "../utils/async";
 import { buildSelectedLinesPatch, parseDiff, type DiffSection, type DiffSectionKind } from "./diff";
-import { parseBranches, parseCommits, parseRemotes, parseStashes, parseStatus, parseSubmodules, parseTags, withMtime } from "./parsers";
-import type { Branch, Commit, GitFile, Remote, Snapshot, Stash, Submodule, Tag } from "./types";
+import { parseBranches, parseCommits, parseConflictFiles, parseRemotes, parseStashes, parseStatus, parseSubmodules, parseTags, withMtime } from "./parsers";
+import type { Branch, Commit, ConflictFile, GitFile, MergeState, Remote, Snapshot, Stash, Submodule, Tag } from "./types";
 
 const gitTimeoutMs = 20_000;
 const gitNetworkTimeoutMs = 120_000;
@@ -14,7 +14,7 @@ export class GitClient {
   constructor(private readonly cwd: string) {}
 
   async snapshot(): Promise<Snapshot> {
-    const [branch, branches, commits, files, stashes, tags, remotes, submodules] = await Promise.all([
+    const [branch, branches, commits, files, stashes, tags, remotes, submodules, conflicts, mergeState] = await Promise.all([
       this.currentBranch(),
       this.branches(),
       this.commits(),
@@ -22,7 +22,9 @@ export class GitClient {
       this.stashes(),
       this.tags(),
       this.remotes(),
-      this.submodules()
+      this.submodules(),
+      this.conflicts(),
+      this.mergeState()
     ]);
 
     return {
@@ -34,7 +36,9 @@ export class GitClient {
       stashes,
       tags,
       remotes,
-      submodules
+      submodules,
+      conflicts,
+      mergeState
     };
   }
 
@@ -73,6 +77,30 @@ export class GitClient {
     }));
 
     return [...withMtimes, ...overflow].sort((a, b) => b.mtimeMs - a.mtimeMs || a.path.localeCompare(b.path));
+  }
+
+  async conflicts(): Promise<ConflictFile[]> {
+    return parseConflictFiles(await this.git(["status", "--porcelain=v1"], gitTimeoutMs));
+  }
+
+  async mergeState(): Promise<MergeState> {
+    const [mergeHead, cherryPickHead, rebaseMerge, rebaseApply] = await Promise.all([
+      this.gitPathExists("MERGE_HEAD"),
+      this.gitPathExists("CHERRY_PICK_HEAD"),
+      this.gitPathExists("rebase-merge"),
+      this.gitPathExists("rebase-apply")
+    ]);
+
+    if (rebaseMerge || rebaseApply) {
+      return { active: true, operation: "rebase" };
+    }
+    if (cherryPickHead) {
+      return { active: true, operation: "cherryPick" };
+    }
+    if (mergeHead) {
+      return { active: true, operation: "merge" };
+    }
+    return { active: false };
   }
 
   async stashes(): Promise<Stash[]> {
@@ -253,6 +281,48 @@ export class GitClient {
     return this.git(["cherry-pick", hash]);
   }
 
+  async useOurs(filePath: string): Promise<string> {
+    await this.git(["checkout", "--ours", "--", filePath]);
+    return this.stage(filePath);
+  }
+
+  async useTheirs(filePath: string): Promise<string> {
+    await this.git(["checkout", "--theirs", "--", filePath]);
+    return this.stage(filePath);
+  }
+
+  markResolved(filePath: string): Promise<string> {
+    return this.stage(filePath);
+  }
+
+  async abortOperation(): Promise<string> {
+    const state = await this.mergeState();
+    switch (state.operation) {
+      case "merge":
+        return this.git(["merge", "--abort"]);
+      case "cherryPick":
+        return this.git(["cherry-pick", "--abort"]);
+      case "rebase":
+        return this.git(["rebase", "--abort"]);
+      default:
+        throw new Error("No merge, cherry-pick, or rebase operation is active.");
+    }
+  }
+
+  async continueOperation(): Promise<string> {
+    const state = await this.mergeState();
+    switch (state.operation) {
+      case "merge":
+        return this.git(["commit", "--no-edit"]);
+      case "cherryPick":
+        return this.git(["cherry-pick", "--continue"]);
+      case "rebase":
+        return this.git(["rebase", "--continue"]);
+      default:
+        throw new Error("No merge, cherry-pick, or rebase operation is active.");
+    }
+  }
+
   fetch(): Promise<string> {
     return this.git(["fetch", "--all", "--prune"], gitNetworkTimeoutMs);
   }
@@ -349,6 +419,19 @@ export class GitClient {
       return (await stat(path.join(this.cwd, filePath))).mtimeMs;
     } catch {
       return 0;
+    }
+  }
+
+  private async gitPathExists(relativePath: string): Promise<boolean> {
+    const gitPath = (await this.tryGit(["rev-parse", "--git-path", relativePath])).trim();
+    if (!gitPath) {
+      return false;
+    }
+    try {
+      await access(path.isAbsolute(gitPath) ? gitPath : path.join(this.cwd, gitPath));
+      return true;
+    } catch {
+      return false;
     }
   }
 }

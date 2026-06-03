@@ -47,6 +47,7 @@
   const summaryDate = document.getElementById("summaryDate");
   const summaryRefs = document.getElementById("summaryRefs");
   const summarySubject = document.getElementById("summarySubject");
+  const conflictBanner = document.getElementById("conflictBanner");
   const stageButton = document.getElementById("stageButton");
   const stageAllButton = document.getElementById("stageAllButton");
   const unstageButton = document.getElementById("unstageButton");
@@ -158,8 +159,79 @@
     renderTags(snapshot.tags || []);
     renderStashes(snapshot.stashes || []);
     renderSubmodules(snapshot.submodules || []);
+    renderConflictState(snapshot);
     renderFiles(snapshot.files);
     renderCommits(snapshot.commits);
+  }
+
+  function renderConflictState(snapshot) {
+    const mergeState = snapshot.mergeState || { active: false };
+    const conflicts = snapshot.conflicts || [];
+    conflictBanner.hidden = !mergeState.active;
+    conflictBanner.innerHTML = "";
+    if (!mergeState.active) {
+      return;
+    }
+
+    const header = document.createElement("div");
+    header.className = "conflictHeader";
+    header.append(
+      textSpan(`${formatOperation(mergeState.operation)} in progress`, "conflictTitle"),
+      textSpan(`${conflicts.length} unresolved`, "conflictCount")
+    );
+
+    const actions = document.createElement("div");
+    actions.className = "conflictActions";
+    const abort = document.createElement("button");
+    abort.type = "button";
+    abort.append(icon("trash"), textSpan("Abort"));
+    abort.addEventListener("click", () => post("abortOperation"));
+    const resume = document.createElement("button");
+    resume.type = "button";
+    resume.disabled = conflicts.length > 0;
+    resume.append(icon("check"), textSpan("Continue"));
+    resume.addEventListener("click", () => post("continueOperation"));
+    actions.append(abort, resume);
+    header.append(actions);
+    conflictBanner.append(header);
+
+    if (!conflicts.length) {
+      conflictBanner.append(textBlock("All conflicts are marked resolved.", "conflictEmpty"));
+      return;
+    }
+
+    const list = document.createElement("div");
+    list.className = "conflictList";
+    conflicts.forEach((conflict) => {
+      const row = document.createElement("div");
+      row.className = "conflictRow";
+      const details = document.createElement("button");
+      details.type = "button";
+      details.className = "conflictFile";
+      details.append(icon("file"), textSpan(conflict.path), textSpan(conflict.type, "conflictType"));
+      details.addEventListener("click", () => post("selectFile", { path: conflict.path }));
+
+      const ours = conflictButton("Use Ours", "useOurs", conflict.path);
+      const theirs = conflictButton("Use Theirs", "useTheirs", conflict.path);
+      const resolved = conflictButton("Mark Resolved", "markResolved", conflict.path);
+      row.append(details, ours, theirs, resolved);
+      list.append(row);
+    });
+    conflictBanner.append(list);
+  }
+
+  function conflictButton(label, type, filePath) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.append(textSpan(label));
+    button.addEventListener("click", () => post(type, { path: filePath }));
+    return button;
+  }
+
+  function formatOperation(operation) {
+    if (operation === "cherryPick") return "Cherry-pick";
+    if (operation === "rebase") return "Rebase";
+    return "Merge";
   }
 
   function setLoading(loading) {
@@ -525,6 +597,9 @@
     hunk.lines.forEach((line, lineIndex) => {
       const row = document.createElement("div");
       row.className = `diffLine ${line.kind}`;
+      if (isConflictMarker(line.text)) {
+        row.classList.add("conflictMarker");
+      }
       if (line.kind === "add" || line.kind === "del") {
         row.tabIndex = 0;
         row.title = "Click to select this line";
@@ -588,6 +663,10 @@
     if (kind === "add") return "+";
     if (kind === "del") return "-";
     return " ";
+  }
+
+  function isConflictMarker(text) {
+    return text.startsWith("<<<<<<<") || text.startsWith("=======") || text.startsWith(">>>>>>>");
   }
 
   function trimDiffForPane(diff, side) {

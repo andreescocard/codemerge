@@ -1,4 +1,4 @@
-import type { Branch, Commit, GitFile, Remote, Stash, Submodule, Tag } from "./types";
+import type { Branch, Commit, ConflictFile, GitFile, Remote, Stash, Submodule, Tag } from "./types";
 import { formatMtime } from "../utils/format";
 
 export type StatusEntry = Omit<GitFile, "mtimeMs" | "mtimeLabel">;
@@ -43,6 +43,20 @@ export function parseStatus(output: string): StatusEntry[] {
         staged: index !== " " && index !== "?"
       };
     });
+}
+
+export function parseConflictFiles(output: string): ConflictFile[] {
+  return output
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => {
+      const index = line[0] ?? " ";
+      const workingTree = line[1] ?? " ";
+      const filePath = line.slice(3).replace(/^"|"$/g, "");
+      const path = filePath.includes(" -> ") ? filePath.split(" -> ").at(-1) ?? filePath : filePath;
+      return { path, index, workingTree, type: conflictType(index, workingTree) };
+    })
+    .filter((file) => file.type !== "none");
 }
 
 export function withMtime(entry: StatusEntry, mtimeMs: number): GitFile {
@@ -129,5 +143,27 @@ function submoduleStatus(marker: string): Submodule["status"] {
       return "conflict";
     default:
       return "initialized";
+  }
+}
+
+function conflictType(index: string, workingTree: string): string {
+  const code = `${index}${workingTree}`;
+  switch (code) {
+    case "DD":
+      return "both deleted";
+    case "AU":
+      return "added by us";
+    case "UD":
+      return "deleted by them";
+    case "UA":
+      return "added by them";
+    case "DU":
+      return "deleted by us";
+    case "AA":
+      return "both added";
+    case "UU":
+      return "both modified";
+    default:
+      return "none";
   }
 }

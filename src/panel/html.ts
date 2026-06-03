@@ -111,6 +111,7 @@ export function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri) {
         </div>
 
         <section class="summaryPane">
+          <section id="conflictBanner" class="conflictBanner" hidden></section>
           <button class="summaryMenu" title="Summary actions"><svg><use href="#icon-more"></use></svg></button>
           <form id="commitForm" class="commitBox">
             <textarea id="commitMessage" rows="3" placeholder="Commit Message"></textarea>

@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-02T00:00:00Z",
+  "title": "Design System: CodeMerge",
+  "extensions": {
+    "colorMeta": {
+      "blue": { "role": "primary", "displayName": "Focus Blue", "canonical": "var(--vscode-focusBorder)" },
+      "blue-soft": { "role": "primary", "displayName": "Selection Blue", "canonical": "var(--vscode-list-activeSelectionBackground)" },
+      "purple": { "role": "secondary", "displayName": "Graph Purple", "canonical": "var(--vscode-charts-purple)" },
+      "green": { "role": "tertiary", "displayName": "Added Green", "canonical": "var(--vscode-gitDecoration-addedResourceForeground)" },
+      "refs-blue": { "role": "tertiary", "displayName": "Refs Blue", "canonical": "#3f78b7", "tonalRamp": ["#0d2236","#15324d","#1d4265","#27557f","#3f78b7","#6094c9","#8bb3da","#bcd3ea"] },
+      "status-red": { "role": "danger", "displayName": "Status Red", "canonical": "#bc4d4d", "tonalRamp": ["#3a1414","#54201f","#71302e","#94403d","#bc4d4d","#cd7470","#dd9c99","#edc6c4"] },
+      "text": { "role": "neutral", "displayName": "Text", "canonical": "var(--vscode-foreground)" },
+      "muted": { "role": "neutral", "displayName": "Muted", "canonical": "var(--vscode-descriptionForeground)" },
+      "surface": { "role": "neutral", "displayName": "Surface", "canonical": "var(--vscode-editor-background)" },
+      "pane": { "role": "neutral", "displayName": "Pane", "canonical": "var(--vscode-sideBar-background)" },
+      "line": { "role": "neutral", "displayName": "Hairline", "canonical": "var(--vscode-panel-border)" }
+    },
+    "typographyMeta": {
+      "ui": { "displayName": "UI", "purpose": "Default interface chrome, labels, rows. Editor's UI font." },
+      "code": { "displayName": "Code/Mono", "purpose": "All literal Git data: diffs, paths, hashes, commit metadata." },
+      "subject": { "displayName": "Subject", "purpose": "Commit subjects and summary headlines, heaviest weight." },
+      "label": { "displayName": "Label", "purpose": "Section headings, often uppercase bold." },
+      "micro": { "displayName": "Micro", "purpose": "Timestamps, refs, hunk headers. Density floor at 10-11px." }
+    },
+    "shadows": [
+      { "name": "menu-lift", "value": "0 8px 24px var(--vscode-widget-shadow, rgba(0,0,0,0.24))", "purpose": "The only shadow. Floating context menus exclusively; never resting surfaces." }
+    ],
+    "motion": [
+      { "name": "action-reveal", "value": "opacity 0 -> 1 on row hover/selection", "purpose": "Row actions hide until the row is engaged. Must respect prefers-reduced-motion." }
+    ],
+    "breakpoints": [
+      { "name": "compact", "value": "1100px" },
+      { "name": "stack", "value": "820px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Toolbar Button",
+      "kind": "button",
+      "refersTo": "button-toolbar",
+      "description": "Secondary action button in the top app toolbar.",
+      "html": "<button class=\"ds-btn-toolbar\"><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21 12a9 9 0 1 1-3-6.7L21 8\"/><path d=\"M21 3v5h-5\"/></svg>Fetch</button>",
+      "css": ".ds-btn-toolbar { display:inline-flex; align-items:center; gap:6px; height:22px; min-height:22px; padding:0 8px; border:1px solid var(--vscode-input-border, var(--vscode-panel-border)); border-radius:3px; background:var(--vscode-button-secondaryBackground); color:var(--vscode-button-secondaryForeground); font:inherit; cursor:pointer; } .ds-btn-toolbar:hover { background:var(--vscode-button-secondaryHoverBackground); border-color:var(--vscode-focusBorder); } .ds-btn-toolbar:focus-visible { outline:none; border-color:var(--vscode-focusBorder); }"
+    },
+    {
+      "name": "Icon Button",
+      "kind": "button",
+      "refersTo": "button-icon",
+      "description": "Square icon-only toggle; .active shows engaged state.",
+      "html": "<button class=\"ds-btn-icon active\" aria-pressed=\"true\"><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"7\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\"/></svg></button>",
+      "css": ".ds-btn-icon { display:inline-flex; align-items:center; justify-content:center; width:26px; height:24px; padding:0; border:1px solid var(--vscode-input-border, var(--vscode-panel-border)); background:transparent; color:var(--vscode-foreground); cursor:pointer; } .ds-btn-icon:hover { border-color:var(--vscode-focusBorder); } .ds-btn-icon.active { background:var(--vscode-button-background); color:var(--vscode-button-foreground); border-color:transparent; }"
+    },
+    {
+      "name": "Branch Row",
+      "kind": "nav",
+      "refersTo": "row-branch",
+      "description": "Locations-pane branch entry; .current marks the checked-out branch.",
+      "html": "<button class=\"ds-row-branch current\"><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"6\" y1=\"3\" x2=\"6\" y2=\"15\"/><circle cx=\"18\" cy=\"6\" r=\"3\"/><circle cx=\"6\" cy=\"18\" r=\"3\"/><path d=\"M18 9a9 9 0 0 1-9 9\"/></svg>main</button>",
+      "css": ".ds-row-branch { display:flex; align-items:center; gap:6px; height:20px; width:100%; padding:0 10px 0 18px; border:0; background:transparent; color:var(--vscode-descriptionForeground); text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font:inherit; cursor:pointer; } .ds-row-branch:hover { background:var(--vscode-list-hoverBackground); color:var(--vscode-foreground); } .ds-row-branch.current { font-weight:700; color:var(--vscode-foreground); background:color-mix(in srgb, var(--vscode-list-activeSelectionBackground) 45%, transparent); }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": null,
+      "description": "File status indicator; .staged switches to green-on-transparent. Status by letter + color, never color alone.",
+      "html": "<span class=\"ds-status-badge\">M</span> <span class=\"ds-status-badge staged\">A</span>",
+      "css": ".ds-status-badge { display:inline-flex; align-items:center; justify-content:center; width:26px; height:16px; border-radius:2px; background:var(--vscode-list-inactiveSelectionBackground); color:#bc4d4d; font-size:10px; font-weight:700; } .ds-status-badge.staged { background:transparent; color:var(--vscode-gitDecoration-addedResourceForeground); }"
+    },
+    {
+      "name": "Input Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Standard text input; focus shifts border to Focus Blue, no glow.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Branch name\" />",
+      "css": ".ds-input { height:24px; padding:0 6px; border:1px solid var(--vscode-input-border, var(--vscode-panel-border)); border-radius:3px; background:var(--vscode-input-background); color:var(--vscode-foreground); font:inherit; } .ds-input:focus { outline:none; border-color:var(--vscode-focusBorder); }"
+    },
+    {
+      "name": "Commit Row",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "History entry: graph rail + node, bold subject, mono metadata, hover-revealed action.",
+      "html": "<div class=\"ds-commit-row\"><span class=\"ds-commit-node\"></span><div class=\"ds-commit-body\"><div class=\"ds-commit-subject\">feat: add diff parsing</div><div class=\"ds-commit-meta\">aa7b866 - andre - 2h ago</div></div><button class=\"ds-commit-action\">Checkout</button></div>",
+      "css": ".ds-commit-row { position:relative; display:grid; grid-template-columns:24px minmax(0,1fr) auto; gap:5px; align-items:center; min-height:54px; padding:7px 10px 6px; border-bottom:1px solid var(--vscode-widget-border, var(--vscode-panel-border)); background:var(--vscode-editor-background); } .ds-commit-row::before { content:\"\"; position:absolute; left:10px; top:0; bottom:0; width:2px; background:var(--vscode-focusBorder); } .ds-commit-row:hover { background:var(--vscode-list-activeSelectionBackground); } .ds-commit-node { width:10px; height:10px; margin:0 auto; border-radius:999px; background:color-mix(in srgb, var(--vscode-focusBorder) 18%, transparent); } .ds-commit-subject { font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .ds-commit-meta { margin-top:3px; font-size:11px; font-family:var(--vscode-editor-font-family); color:var(--vscode-descriptionForeground); } .ds-commit-action { opacity:0; min-height:20px; font-size:11px; border:1px solid var(--vscode-input-border); border-radius:3px; background:var(--vscode-button-secondaryBackground); color:var(--vscode-button-secondaryForeground); cursor:pointer; } .ds-commit-row:hover .ds-commit-action { opacity:1; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Theme Chameleon",
+    "overview": "CodeMerge owns almost no color of its own. Every surface, border, and accent resolves through a var(--vscode-*) token, so the client wears whatever theme the editor wears: Dark+, Light+, Solarized, High Contrast, all of them, with zero per-theme work. Identity here is adaptiveness, not a signature palette. The second law is density: 12px base, 10-11px metadata, a Sublime Merge-style three-column control surface packed edge to edge, 2-3px radii, no card chrome. A power tool for developers who already know Git.",
+    "keyCharacteristics": [
+      "Color sourced from VS Code theme tokens, never hardcoded.",
+      "Information-dense: 12px base, 10-11px metadata, 20-28px control heights.",
+      "Flat by default; the only shadow lifts floating menus.",
+      "Tight radii (2-3px); no card containers.",
+      "Mono (--vscode-editor-font-family) for code, paths, and commit metadata."
+    ],
+    "rules": [
+      { "name": "The Borrowed Color Rule", "body": "No hardcoded hex except where a VS Code token genuinely does not exist. Today that is exactly two values (#3f78b7, #bc4d4d) plus one shadow rgba. Adding a third is forbidden without first proving no --vscode-* token fits.", "section": "colors" },
+      { "name": "The One Accent Rule", "body": "Focus Blue is the only interaction accent. Purple is a graph-rhythm device, green/red are Git status semantics. Do not introduce a fourth brand color.", "section": "colors" },
+      { "name": "The Mono-Means-Git Rule", "body": "Literal repository data (paths, hashes, diff lines, commit metadata) renders in --vscode-editor-font-family. Interface chrome renders in --vscode-font-family. Never mix the two roles.", "section": "typography" },
+      { "name": "The Flat-Plane Rule", "body": "Surfaces are flat at rest and stay flat on hover. Hover changes background tint, never elevation. The single shadow is reserved for floating context menus.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do source every color from a var(--vscode-*) token so the UI tracks the active theme, including High Contrast and High Contrast Light.",
+      "Do keep the base at 12px and reach for 11px/10px for metadata; density is the product.",
+      "Do keep radii at 2-3px and dividers at 1px hairlines.",
+      "Do use mono (--vscode-editor-font-family) for all literal Git data and UI sans for chrome.",
+      "Do pair status color with a glyph, letter, or position, never color alone.",
+      "Do signal interaction with a Focus Blue border shift; reserve the one shadow for floating menus only.",
+      "Do respect prefers-reduced-motion; the opacity reveals and hover tints must never be required to understand state."
+    ],
+    "donts": [
+      "Don't hardcode a hex without proving no --vscode-* token fits; the system has exactly two such exceptions and they are debts, not patterns.",
+      "Don't add resting shadows or card lift. Flat plane at rest, tint on hover.",
+      "Don't use border-left/border-right over 1px as a colored accent stripe on rows, callouts, or alerts.",
+      "Don't introduce playful consumer-SaaS gloss: pastel cards, big rounded corners, mascots, illustrations.",
+      "Don't ship the generic AI-dashboard kit: gradient hero metrics, identical card grids, gradient text, glassmorphism.",
+      "Don't wrap content in card containers; this UI is panes and rows, not cards. Nested cards are always wrong.",
+      "Don't add a fourth brand accent. Focus Blue is the accent; purple is graph rhythm; green/red are Git status."
+    ]
+  }
+}
