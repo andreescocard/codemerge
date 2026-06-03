@@ -15,17 +15,38 @@ export function parseBranches(output: string): Branch[] {
 }
 
 export function parseCommits(output: string): Commit[] {
-  const commits = output
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .map((line) => {
-      const match = line.match(/^([*|\\/ _.-]+)?([a-f0-9]{40}\x1f.*)$/i);
-      const graph = match?.[1]?.trimEnd() || "";
-      const payload = match?.[2] || line;
-      const [hash, shortHash, parents = "", refs = "", subject = "", author = "", relativeDate = ""] = payload.split("\x1f");
-      return { hash, shortHash, parents: parents.split(" ").filter(Boolean), refs, subject, author, relativeDate, graph };
-    })
-    .filter((commit) => commit.hash && commit.shortHash);
+  const commits: Array<Omit<Commit, "lane" | "lanes" | "colorLane" | "routes">> = [];
+  let current: Omit<Commit, "lane" | "lanes" | "colorLane" | "routes"> | undefined;
+
+  output.split(/\r?\n/).forEach((line) => {
+    const match = line.match(/^([*|\\/ _.-]+)?([a-f0-9]{40}\x1f.*)$/i);
+    if (match) {
+      const graph = match[1]?.trimEnd() || "";
+      const payload = match[2] || line;
+      const [hash, shortHash, parents = "", refs = "", subject = "", author = "", relativeDate = "", committedAt = ""] = payload.split("\x1f");
+      current = {
+        hash,
+        shortHash,
+        parents: parents.split(" ").filter(Boolean),
+        refs,
+        subject,
+        author,
+        relativeDate,
+        committedAt,
+        filesChanged: 0,
+        graph
+      };
+      if (current.hash && current.shortHash) {
+        commits.push(current);
+      }
+      return;
+    }
+
+    const shortstat = line.match(/(\d+)\s+files?\s+changed/i);
+    if (current && shortstat) {
+      current.filesChanged = Number(shortstat[1]);
+    }
+  });
 
   return assignCommitGraph(commits);
 }

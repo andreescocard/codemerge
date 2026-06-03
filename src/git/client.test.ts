@@ -33,7 +33,12 @@ describe("GitClient", () => {
   it("reads branch and commit state from a real repository", async () => {
     expect(await client.currentBranch()).toBe("main");
     expect(await client.branches()).toContainEqual({ name: "main", current: true });
-    expect((await client.commits())[0]).toMatchObject({ subject: "initial", author: "CodeMerge Tests" });
+    expect((await client.commits())[0]).toMatchObject({
+      subject: "initial",
+      author: "CodeMerge Tests",
+      filesChanged: 1
+    });
+    expect((await client.commits())[0].committedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
   it("reports whether more commits are available for a commit window", async () => {
@@ -47,6 +52,7 @@ describe("GitClient", () => {
     const window = await client.commitWindow(1);
     expect(window.commits).toHaveLength(1);
     expect(window.hasMore).toBe(true);
+    expect((await client.commitWindow(1, "main")).commits).toHaveLength(1);
   });
 
   it("stages and commits working tree changes", async () => {

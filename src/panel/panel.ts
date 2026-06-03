@@ -9,6 +9,7 @@ export class CodeMergePanel {
   private static readonly commitPageSize = 80;
   private readonly client: GitClient;
   private commitLimit = CodeMergePanel.commitPageSize;
+  private commitScope: string | undefined;
   private selectedFile: string | undefined;
   private refreshRequest = 0;
 
@@ -43,7 +44,9 @@ export class CodeMergePanel {
     this.panel.webview.html = renderHtml(this.panel.webview, extensionUri);
     this.panel.onDidDispose(() => (CodeMergePanel.currentPanel = undefined));
     this.panel.webview.onDidReceiveMessage((message) => this.handleMessage(message));
-    void this.refresh();
+    // The initial load is requested by the webview (refresh/setCommitScope) once
+    // its message listener is ready; posting a snapshot here would race that and
+    // could be dropped before the webview finishes loading.
   }
 
   private async handleMessage(message: WebviewMessage) {
@@ -55,6 +58,11 @@ export class CodeMergePanel {
           break;
         case MessageType.LoadMoreCommits:
           this.commitLimit += CodeMergePanel.commitPageSize;
+          await this.refresh();
+          break;
+        case MessageType.SetCommitScope:
+          this.commitScope = message.ref?.trim() || undefined;
+          this.commitLimit = CodeMergePanel.commitPageSize;
           await this.refresh();
           break;
         case MessageType.SelectFile:
@@ -496,7 +504,7 @@ export class CodeMergePanel {
     this.panel.webview.postMessage({ type: "loading", loading: true });
 
     try {
-      const snapshot = await this.client.snapshot(this.commitLimit);
+      const snapshot = await this.client.snapshot(this.commitLimit, this.commitScope);
       if (request !== this.refreshRequest) {
         return;
       }

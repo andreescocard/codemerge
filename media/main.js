@@ -4,6 +4,7 @@
     selectedPath: undefined,
     selectedCommit: undefined,
     hiddenBranches: new Set(vscode.getState()?.hiddenBranches || []),
+    commitScope: vscode.getState()?.commitScope,
     expandedPaths: new Set(),
     diffCache: {},
     snapshot: undefined
@@ -118,6 +119,14 @@
   fileFilter.addEventListener("input", () => renderFiles(state.snapshot?.files || []));
   fileSort.addEventListener("change", () => renderFiles(state.snapshot?.files || []));
   commitFilter.addEventListener("input", () => renderCommits(state.snapshot?.commits || []));
+  // Drive the initial load from the webview so the host only posts the
+  // snapshot once this message listener is registered (avoids a startup race
+  // where the constructor's refresh fired before the webview was ready).
+  if (state.commitScope) {
+    post("setCommitScope", { ref: state.commitScope });
+  } else {
+    post("refresh");
+  }
 
   branchSelect.addEventListener("change", () => {
     if (branchSelect.value && branchSelect.value !== state.snapshot?.currentBranch) {
@@ -663,6 +672,11 @@
       subject.className = "commitSubject";
       subject.textContent = commit.subject;
 
+      const filesBadge = document.createElement("span");
+      filesBadge.className = "filesBadge";
+      filesBadge.textContent = String(commit.filesChanged || 0);
+      filesBadge.hidden = (commit.filesChanged || 0) <= 1;
+
       const cherryPick = document.createElement("button");
       cherryPick.className = "commitAction";
       cherryPick.type = "button";
@@ -672,20 +686,25 @@
         post("cherryPick", { hash: commit.hash });
       });
 
-      top.append(subject, cherryPick);
+      top.append(subject, filesBadge, cherryPick);
 
       const meta = document.createElement("div");
       meta.className = "commitMeta";
       meta.textContent = `${commit.shortHash} · ${commit.author} · ${commit.relativeDate}`;
 
-      if (commit.refs) {
-        const refs = document.createElement("div");
-        refs.className = "refs";
-        refs.textContent = commit.refs;
-        body.append(top, refs, meta);
+      const author = document.createElement("span");
+      author.className = "commitAuthor";
+      author.textContent = commit.author || commit.shortHash;
+      const rightMeta = document.createElement("span");
+      rightMeta.className = "commitRightMeta";
+      const refPills = renderRefPills(commit);
+      if (refPills.children.length) {
+        rightMeta.append(refPills);
       } else {
-        body.append(top, meta);
+        rightMeta.textContent = formatCommitDate(commit.committedAt) || commit.relativeDate || "";
       }
+      meta.replaceChildren(author, rightMeta);
+      body.append(top, meta);
 
       row.append(graph, body);
       commitList.append(row);
@@ -780,40 +799,98 @@
   }
 
   function renderCommitGraph(commit) {
-    const laneGap = 12;
-    const lanes = Math.max(1, Math.min(6, commit.lanes || 1));
+    const laneGap = 16;
+    const lanes = Math.max(1, Math.min(4, commit.lanes || 1));
     const width = lanes * laneGap + 12;
-    const height = 40;
+    const height = 100;
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.classList.add("graph");
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-    svg.setAttribute("width", String(width));
-    svg.setAttribute("height", String(height));
+    svg.setAttribute("preserveAspectRatio", "none");
     svg.setAttribute("aria-hidden", "true");
 
-    for (let lane = 0; lane < lanes; lane += 1) {
-      svg.append(graphLine(xForLane(lane), 0, xForLane(lane), height, "graphRail"));
-    }
-
-    (commit.edges || []).forEach((edge) => {
-      const from = Math.min(edge.fromLane, lanes - 1);
-      const to = Math.min(edge.toLane, lanes - 1);
-      if (from !== to) {
-        svg.append(graphLine(xForLane(from), 15, xForLane(to), height, "graphEdge"));
+    (commit.routes || []).forEach((route) => {
+      const from = Math.min(route.fromLane || 0, lanes - 1);
+      const to = Math.min(route.toLane || 0, lanes - 1);
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      const x1 = xForLane(from);
+      const y1 = (route.fromY ?? 0) * height;
+      const x2 = xForLane(to);
+      const y2 = (route.toY ?? 1) * height;
+      const colorLane = Math.min(route.colorLane || 0, 3);
+      path.classList.add("graphRoute", `lane-${colorLane}`);
+      if (from === to) {
+        path.setAttribute("d", `M ${x1} ${y1} L ${x2} ${y2}`);
+      } else {
+        path.setAttribute("d", `M ${x1} ${y1} Q ${x1} ${(y1 + y2) / 2} ${x2} ${y2}`);
       }
+      svg.append(path);
     });
 
-    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    dot.classList.add("graphDot");
-    dot.setAttribute("cx", String(xForLane(Math.min(commit.lane || 0, lanes - 1))));
-    dot.setAttribute("cy", "15");
-    dot.setAttribute("r", "4");
-    svg.append(dot);
+    const nodeSize = 8;
+    const node = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    node.classList.add("graphNode", `lane-${Math.min(commit.colorLane || commit.lane || 0, 3)}`);
+    node.setAttribute("x", String(xForLane(Math.min(commit.lane || 0, lanes - 1)) - nodeSize / 2));
+    node.setAttribute("y", String(height / 2 - nodeSize / 2));
+    node.setAttribute("width", String(nodeSize));
+    node.setAttribute("height", String(nodeSize));
+    node.setAttribute("rx", "1.5");
+    svg.append(node);
     return svg;
 
     function xForLane(lane) {
       return 6 + lane * laneGap;
     }
+  }
+
+  function renderRefPills(commit) {
+    const refs = document.createElement("span");
+    refs.className = "refs";
+    parseRefs(commit.refs).forEach((ref) => {
+      const pill = document.createElement("span");
+      pill.className = `refPill ${ref.kind}`;
+      pill.textContent = ref.label;
+      refs.append(pill);
+    });
+    return refs;
+  }
+
+  function parseRefs(refs) {
+    return String(refs || "")
+      .split(",")
+      .map((ref) => ref.trim())
+      .filter(Boolean)
+      .map((ref) => {
+        if (ref.startsWith("HEAD -> ")) {
+          return { kind: "head", label: ref.slice("HEAD -> ".length) };
+        }
+        if (ref.startsWith("tag: ")) {
+          return { kind: "tag", label: ref.slice("tag: ".length) };
+        }
+        if (ref.includes("/")) {
+          return { kind: "remote", label: ref.replace(/^remotes\//, "") };
+        }
+        return { kind: "local", label: ref };
+      });
+  }
+
+  function formatCommitDate(value) {
+    if (!value) {
+      return "";
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
+    const now = Date.now();
+    const ageMs = Math.abs(now - date.getTime());
+    if (ageMs <= 7 * 24 * 60 * 60 * 1000) {
+      return new Intl.DateTimeFormat(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
+    }
+    if (date.getFullYear() === new Date(now).getFullYear()) {
+      return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(date);
+    }
+    return date.toISOString().slice(0, 10);
   }
 
   function graphLine(x1, y1, x2, y2, className) {
@@ -1101,18 +1178,22 @@
         .map((branch) => branch.name)
         .filter((name) => name !== branchName)
     );
+    state.commitScope = branchName;
     persistHiddenBranches();
+    post("setCommitScope", { ref: branchName });
     renderBranches(state.snapshot);
   }
 
   function showAllHiddenBranches() {
     state.hiddenBranches.clear();
+    state.commitScope = undefined;
     persistHiddenBranches();
+    post("setCommitScope");
     renderBranches(state.snapshot);
   }
 
   function persistHiddenBranches() {
-    vscode.setState({ ...(vscode.getState() || {}), hiddenBranches: [...state.hiddenBranches] });
+    vscode.setState({ ...(vscode.getState() || {}), hiddenBranches: [...state.hiddenBranches], commitScope: state.commitScope });
   }
 
   function searchBranch(branchName) {

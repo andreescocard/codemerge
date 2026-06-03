@@ -14,6 +14,10 @@
   --purple: var(--vscode-charts-purple);
   --green: var(--vscode-gitDecoration-addedResourceForeground);
   --green-ink: var(--vscode-editor-background);
+  --lane-0: var(--vscode-charts-blue, var(--blue));
+  --lane-1: var(--vscode-charts-purple, #b180d7);
+  --lane-2: var(--vscode-charts-orange, #d7a042);
+  --lane-3: var(--vscode-charts-green, var(--green));
   --danger: var(--vscode-errorForeground);
   --input: var(--vscode-input-background);
   --input-border: var(--vscode-input-border, var(--vscode-panel-border));
@@ -376,8 +380,7 @@ textarea:focus {
 }
 
 .commitChangesSummary span,
-.commitMeta,
-.refs {
+.commitMeta {
   color: var(--muted);
   font-style: italic;
 }
@@ -385,10 +388,10 @@ textarea:focus {
 .commitRow {
   position: relative;
   display: grid;
-  grid-template-columns: 84px minmax(0, 1fr);
+  grid-template-columns: 76px minmax(0, 1fr);
   gap: 5px;
   min-height: 54px;
-  padding: 7px 10px 6px 10px;
+  padding: 0 10px;
   border-bottom: 1px solid var(--line-soft);
   background: var(--surface);
 }
@@ -407,34 +410,66 @@ textarea:focus {
 .graph {
   align-self: stretch;
   width: 100%;
+  height: 100%;
   min-width: 54px;
-  height: 40px;
   overflow: visible;
 }
 
-.graphRail {
-  stroke: color-mix(in srgb, var(--blue) 45%, transparent);
+.graphRoute {
+  fill: none;
   stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.graphEdge {
-  stroke: var(--purple);
-  stroke-width: 2;
+.graphRoute.lane-0,
+.graphNode.lane-0 {
+  stroke: var(--lane-0);
 }
 
-.graphDot {
-  fill: var(--surface);
-  stroke: var(--blue);
-  stroke-width: 2.4;
+.graphNode.lane-0 {
+  fill: var(--lane-0);
+}
+
+.graphRoute.lane-1,
+.graphNode.lane-1 {
+  stroke: var(--lane-1);
+}
+
+.graphNode.lane-1 {
+  fill: var(--lane-1);
+}
+
+.graphRoute.lane-2,
+.graphNode.lane-2 {
+  stroke: var(--lane-2);
+}
+
+.graphNode.lane-2 {
+  fill: var(--lane-2);
+}
+
+.graphRoute.lane-3,
+.graphNode.lane-3 {
+  stroke: var(--lane-3);
+}
+
+.graphNode.lane-3 {
+  fill: var(--lane-3);
+}
+
+.graphNode {
+  stroke-width: 1.4;
 }
 
 .commitBody {
   min-width: 0;
+  align-self: center;
 }
 
 .commitTop {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 6px;
   align-items: center;
 }
@@ -448,16 +483,83 @@ textarea:focus {
 
 .commitMeta,
 .refs {
-  margin-top: 3px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 11px;
 }
 
+.commitMeta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 3px;
+  align-items: center;
+}
+
+.commitAuthor,
+.commitRightMeta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .refs {
-  color: var(--blue);
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 0;
   font-style: normal;
+}
+
+.filesBadge,
+.refPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  font-size: 10px;
+  font-style: normal;
+  line-height: 1;
+}
+
+.filesBadge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: var(--pane-alt);
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.refPill {
+  max-width: 92px;
+  height: 16px;
+  padding: 0 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--vscode-badge-foreground);
+  background: var(--vscode-badge-background);
+}
+
+.refPill.local {
+  background: var(--lane-0);
+}
+
+.refPill.remote {
+  background: var(--lane-1);
+}
+
+.refPill.tag {
+  background: var(--lane-2);
+}
+
+.refPill.head {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
 }
 
 .commitAction {

@@ -16,11 +16,11 @@ const defaultCommitLimit = 80;
 export class GitClient {
   constructor(private readonly cwd: string) {}
 
-  async snapshot(commitLimit = defaultCommitLimit): Promise<Snapshot> {
+  async snapshot(commitLimit = defaultCommitLimit, revision?: string): Promise<Snapshot> {
     const [branch, branches, commitWindow, files, stashes, tags, remotes, submodules, conflicts, mergeState] = await Promise.all([
       this.currentBranch(),
       this.branches(),
-      this.commitWindow(commitLimit),
+      this.commitWindow(commitLimit, revision),
       this.status(),
       this.stashes(),
       this.tags(),
@@ -56,21 +56,27 @@ export class GitClient {
     return parseBranches(output);
   }
 
-  async commits(limit = defaultCommitLimit): Promise<Commit[]> {
-    return (await this.commitWindow(limit)).commits;
+  async commits(limit = defaultCommitLimit, revision?: string): Promise<Commit[]> {
+    return (await this.commitWindow(limit, revision)).commits;
   }
 
-  async commitWindow(limit = defaultCommitLimit): Promise<{ commits: Commit[]; hasMore: boolean }> {
-    const format = "%H%x1f%h%x1f%P%x1f%D%x1f%s%x1f%an%x1f%cr";
-    const output = await this.git([
+  async commitWindow(limit = defaultCommitLimit, revision?: string): Promise<{ commits: Commit[]; hasMore: boolean }> {
+    const format = "%H%x1f%h%x1f%P%x1f%D%x1f%s%x1f%an%x1f%cr%x1f%cI";
+    const args = [
       "log",
       "--topo-order",
       "--decorate=short",
       "--date=relative",
+      "--shortstat",
+      "--diff-merges=first-parent",
       `--pretty=format:${format}`,
       "-n",
       String(limit + 1)
-    ]);
+    ];
+    if (revision) {
+      args.push(revision);
+    }
+    const output = await this.git(args);
     const commits = parseCommits(output);
 
     return {

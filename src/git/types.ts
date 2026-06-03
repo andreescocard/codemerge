@@ -15,15 +15,21 @@ export type Commit = {
   subject: string;
   author: string;
   relativeDate: string;
+  committedAt: string;
+  filesChanged: number;
   graph: string;
   lane: number;
   lanes: number;
-  edges: CommitGraphEdge[];
+  colorLane: number;
+  routes: GraphRoute[];
 };
 
-export type CommitGraphEdge = {
+export type GraphRoute = {
   fromLane: number;
+  fromY: number;
   toLane: number;
+  toY: number;
+  colorLane: number;
 };
 
 export type Branch = {
