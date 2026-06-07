@@ -104,6 +104,17 @@ describe("GitClient", () => {
     expect(blame[0]).toMatchObject({ author: "CodeMerge Tests" });
   });
 
+  it("checks out a branch created from a selected source", async () => {
+    await git(["checkout", "main"]);
+
+    await client.createBranch("created-from-main", "main");
+
+    expect(await client.currentBranch()).toBe("created-from-main");
+
+    await git(["checkout", "main"]);
+    await git(["branch", "-D", "created-from-main"]);
+  });
+
   it("rebases the current branch onto another branch", async () => {
     await git(["checkout", "-b", "rebase-topic"]);
     await writeFile(path.join(repo, "topic.txt"), "topic\n", "utf8");

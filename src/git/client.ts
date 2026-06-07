@@ -318,7 +318,7 @@ export class GitClient {
   }
 
   createBranch(name: string, startPoint: string): Promise<string> {
-    return this.git(["branch", name, startPoint]);
+    return this.git(["checkout", "-b", name, startPoint]);
   }
 
   mergeBranch(branch: string): Promise<string> {

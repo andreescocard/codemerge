@@ -1099,8 +1099,13 @@ textarea:focus {
 }
 
 .composerActions button[type="submit"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   border-radius: 3px;
   padding: 0 14px;
+  line-height: 1;
 }
 
 .branchCreate {
