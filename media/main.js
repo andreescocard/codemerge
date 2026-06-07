@@ -60,6 +60,7 @@
   const discardAllButton = document.getElementById("discardAllButton");
   const commitForm = document.getElementById("commitForm");
   const commitMessage = document.getElementById("commitMessage");
+  const generateCommitMessageButton = document.getElementById("generateCommitMessageButton");
   const amendCommit = document.getElementById("amendCommit");
 
   restoreLayout();
@@ -139,6 +140,10 @@
 
   stageAllButton.addEventListener("click", () => post("stageAll"));
   discardAllButton.addEventListener("click", () => post("discardAll"));
+  generateCommitMessageButton.addEventListener("click", () => {
+    setGeneratingCommitMessage(true);
+    post("generateCommitMessage");
+  });
   summaryMenu.addEventListener("click", (event) => {
     event.stopPropagation();
     const rect = event.currentTarget.getBoundingClientRect();
@@ -196,6 +201,18 @@
       renderFiles();
     }
 
+    if (message.type === "commitMessageGenerated") {
+      setGeneratingCommitMessage(false);
+      commitMessage.value = message.message || "";
+      commitMessage.focus();
+      commitMessage.setSelectionRange(commitMessage.value.length, commitMessage.value.length);
+    }
+
+    if (message.type === "commitMessageError") {
+      setGeneratingCommitMessage(false);
+      summarySubject.textContent = message.error;
+    }
+
     if (message.type === "blame") {
       state.selectedPath = message.path;
       if (message.path) {
@@ -207,6 +224,7 @@
 
     if (message.type === "error") {
       setLoading(false);
+      setGeneratingCommitMessage(false);
       commitSummaryCount.textContent = "Refresh failed";
       summarySubject.textContent = message.error;
     }
@@ -319,6 +337,13 @@
     if (!state.snapshot) {
       commitSummaryCount.textContent = "No data loaded";
     }
+  }
+
+  function setGeneratingCommitMessage(generating) {
+    generateCommitMessageButton.disabled = generating;
+    generateCommitMessageButton.classList.toggle("spinning", generating);
+    generateCommitMessageButton.title = generating ? "Generating commit message..." : "Generate commit message with Codex";
+    generateCommitMessageButton.setAttribute("aria-label", generateCommitMessageButton.title);
   }
 
   function renderBranches(snapshot) {

@@ -13,6 +13,7 @@ export const MessageType = {
   UnstageLines: "unstageLines",
   Discard: "discard",
   DiscardAll: "discardAll",
+  GenerateCommitMessage: "generateCommitMessage",
   Commit: "commit",
   Reset: "reset",
   Checkout: "checkout",

@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
 import { GitClient } from "../git/client";
+import { generateCommitMessage } from "../git/commitMessage";
 import { MessageType, type WebviewMessage } from "../protocol";
 import { renderHtml } from "./html";
 import { blameUri, showUri } from "./gitContent";
@@ -141,6 +142,17 @@ export class CodeMergePanel {
           if (confirm === "Discard All") {
             await this.client.discardAll();
             await this.refresh();
+          }
+          break;
+        }
+        case MessageType.GenerateCommitMessage: {
+          try {
+            const generatedMessage = await generateCommitMessage(this.root);
+            this.panel.webview.postMessage({ type: "commitMessageGenerated", message: generatedMessage });
+          } catch (error) {
+            const detail = error instanceof Error ? error.message : String(error);
+            vscode.window.showErrorMessage(detail);
+            this.panel.webview.postMessage({ type: "commitMessageError", error: detail });
           }
           break;
         }

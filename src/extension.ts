@@ -226,17 +226,43 @@ function basename(p: string): string {
 }
 
 async function resolveGitRoot(context?: vscode.ExtensionContext): Promise<string | undefined> {
+  const workspaceRoot = await resolveWorkspaceGitRoot();
+  if (workspaceRoot) {
+    return workspaceRoot;
+  }
+
   const selectedRoot = context?.workspaceState.get<string>(selectedRootKey);
   if (selectedRoot && (await gitRootFor(selectedRoot))) {
     return selectedRoot;
   }
 
-  const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-  if (!folder) {
-    return undefined;
+  for (const recentRoot of context ? getRecentRoots(context) : []) {
+    const root = await gitRootFor(recentRoot);
+    if (root) {
+      return root;
+    }
   }
 
-  return gitRootFor(folder);
+  return undefined;
+}
+
+async function resolveWorkspaceGitRoot(): Promise<string | undefined> {
+  const folders = vscode.workspace.workspaceFolders ?? [];
+  const activeFolder = vscode.window.activeTextEditor
+    ? vscode.workspace.getWorkspaceFolder(vscode.window.activeTextEditor.document.uri)
+    : undefined;
+  const orderedFolders = activeFolder
+    ? [activeFolder, ...folders.filter((folder) => folder.uri.fsPath !== activeFolder.uri.fsPath)]
+    : folders;
+
+  for (const folder of orderedFolders) {
+    const root = await gitRootFor(folder.uri.fsPath);
+    if (root) {
+      return root;
+    }
+  }
+
+  return undefined;
 }
 
 async function pickGitRoot(context: vscode.ExtensionContext): Promise<string | undefined> {

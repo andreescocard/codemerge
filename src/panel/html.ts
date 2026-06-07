@@ -37,6 +37,7 @@ export function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri) {
     <symbol id="icon-eye-off" viewBox="0 0 24 24"><path d="m3 3 18 18M10.6 10.6A3 3 0 0 0 13.4 13.4M7.1 7.5C4 9.3 2 12 2 12s4 7 10 7c1.7 0 3.2-.5 4.5-1.2M17.7 14.4C20.3 12.8 22 12 22 12s-4-7-10-7c-1 0-2 .2-2.9.5"/></symbol>
     <symbol id="icon-merge" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2"/><circle cx="6" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="M6 8v4a6 6 0 0 0 6 6h4M6 16V8"/></symbol>
     <symbol id="icon-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></symbol>
+    <symbol id="icon-sparkle" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3zM5 15l.8 2.2L8 18l-2.2.8L5 21l-.8-2.2L2 18l2.2-.8L5 15zM19 15l.6 1.4L21 17l-1.4.6L19 19l-.6-1.4L17 17l1.4-.6L19 15z"/></symbol>
   </svg>
   <main class="shell">
     <header class="appToolbar">
@@ -124,7 +125,10 @@ export function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri) {
           <form id="commitForm" class="commitComposer">
             <textarea id="commitMessage" rows="3" placeholder="Commit message"></textarea>
             <div class="composerActions">
-              <label class="amendToggle"><input id="amendCommit" type="checkbox">Amend</label>
+              <div class="composerLeftActions">
+                <button id="generateCommitMessageButton" class="iconButton" type="button" title="Generate commit message with Codex" aria-label="Generate commit message with Codex"><svg><use href="#icon-sparkle"></use></svg></button>
+                <label class="amendToggle"><input id="amendCommit" type="checkbox">Amend</label>
+              </div>
               <button type="submit"><svg><use href="#icon-check"></use></svg>Commit staged</button>
             </div>
           </form>
