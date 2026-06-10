@@ -17,6 +17,7 @@ export const MessageType = {
   Commit: "commit",
   Reset: "reset",
   Checkout: "checkout",
+  CheckoutByName: "checkoutByName",
   CreateBranch: "createBranch",
   MergeBranch: "mergeBranch",
   RebaseBranch: "rebaseBranch",

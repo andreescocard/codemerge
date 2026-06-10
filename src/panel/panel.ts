@@ -185,6 +185,9 @@ export class CodeMergePanel {
             await this.refresh();
           }
           break;
+        case MessageType.CheckoutByName:
+          await this.runCheckoutByName();
+          break;
         case MessageType.CreateBranch:
           if (message.branch?.trim() && message.sourceBranch) {
             await this.client.createBranch(message.branch.trim(), message.sourceBranch);
@@ -518,6 +521,49 @@ export class CodeMergePanel {
       const detail = error instanceof Error ? error.message : String(error);
       vscode.window.showErrorMessage(detail);
       this.panel.webview.postMessage({ type: "error", error: detail });
+    }
+  }
+
+  static async triggerCheckoutByName(): Promise<void> {
+    const panel = CodeMergePanel.currentPanel;
+    if (!panel) {
+      vscode.window.showErrorMessage("Open CodeMerge first.");
+      return;
+    }
+    try {
+      await panel.runCheckoutByName();
+    } catch (error) {
+      vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  private async runCheckoutByName(): Promise<void> {
+    const input = await vscode.window.showInputBox({
+      prompt: "Checkout branch",
+      placeHolder: "branch-name",
+      ignoreFocusOut: true
+    });
+    if (!input?.trim()) {
+      return;
+    }
+    const name = input.trim();
+    if (!/^(?!-)[\w./\-]+$/.test(name)) {
+      vscode.window.showErrorMessage(`Invalid branch name: "${name}"`);
+      return;
+    }
+    try {
+      await this.client.checkout(name);
+      await this.refresh();
+    } catch {
+      const create = await vscode.window.showWarningMessage(
+        `Branch "${name}" not found. Create it from HEAD?`,
+        { modal: true },
+        "Create"
+      );
+      if (create === "Create") {
+        await this.client.checkoutNewBranch(name);
+        await this.refresh();
+      }
     }
   }
 

@@ -26,6 +26,17 @@
       {
         "command": "codemerge.open",
         "title": "CodeMerge: Open Git Client"
+      },
+      {
+        "command": "codemerge.checkoutByName",
+        "title": "CodeMerge: Checkout Branch by Name"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "codemerge.checkoutByName",
+        "key": "ctrl+shift+b",
+        "mac": "cmd+shift+b"
       }
     ],
     "viewsContainers": {

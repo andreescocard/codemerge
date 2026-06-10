@@ -317,6 +317,10 @@ export class GitClient {
     return this.git(["checkout", branch]);
   }
 
+  checkoutNewBranch(name: string): Promise<string> {
+    return this.git(["checkout", "-b", name, "--"]);
+  }
+
   createBranch(name: string, startPoint: string): Promise<string> {
     return this.git(["checkout", "-b", name, startPoint]);
   }

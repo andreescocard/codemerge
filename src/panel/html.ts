@@ -48,7 +48,7 @@ export function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri) {
       </div>
       <div class="centerBar">
         <button class="iconButton" id="historyMenuButton" title="History options"><svg><use href="#icon-menu"></use></svg></button>
-        <select id="branchSelect" title="Checkout branch"></select>
+        <button id="branchSelectButton" class="branchSelectButton" title="Checkout branch (Ctrl+Shift+B)"><svg><use href="#icon-branch"></use></svg><span id="branchSelectLabel"></span></button>
         <button class="iconButton" id="searchButton" title="Search"><svg><use href="#icon-search"></use></svg></button>
         <button class="iconButton" id="moreButton" title="More actions"><svg><use href="#icon-more"></use></svg></button>
       </div>

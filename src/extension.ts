@@ -20,6 +20,12 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("codemerge.checkoutByName", () =>
+      CodeMergePanel.triggerCheckoutByName()
+    )
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("codemerge.open", async () => {
       const root = (await resolveGitRoot(context)) ?? (await pickGitRoot(context));
       if (!root) {

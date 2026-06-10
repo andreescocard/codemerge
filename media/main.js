@@ -14,7 +14,8 @@
   };
 
   const toggleLocationsButton = document.getElementById("toggleLocationsButton");
-  const branchSelect = document.getElementById("branchSelect");
+  const branchSelectButton = document.getElementById("branchSelectButton");
+  const branchSelectLabel = document.getElementById("branchSelectLabel");
   const newBranchName = document.getElementById("newBranchName");
   const sourceBranchSelect = document.getElementById("sourceBranchSelect");
   const createBranchButton = document.getElementById("createBranchButton");
@@ -132,11 +133,7 @@
     post("refresh");
   }
 
-  branchSelect.addEventListener("change", () => {
-    if (branchSelect.value && branchSelect.value !== state.snapshot?.currentBranch) {
-      post("checkout", { branch: branchSelect.value });
-    }
-  });
+  branchSelectButton.addEventListener("click", () => post("checkoutByName"));
 
   stageAllButton.addEventListener("click", () => post("stageAll"));
   discardAllButton.addEventListener("click", () => post("discardAll"));
@@ -347,18 +344,12 @@
   }
 
   function renderBranches(snapshot) {
-    branchSelect.innerHTML = "";
+    branchSelectLabel.textContent = snapshot.detached ? "detached HEAD" : (snapshot.currentBranch || "");
     sourceBranchSelect.innerHTML = "";
     branchTree.innerHTML = "";
     const visibleBranches = snapshot.branches.filter((branch) => !state.hiddenBranches.has(branch.name));
     branchCount.textContent = String(visibleBranches.length);
     snapshot.branches.forEach((branch) => {
-      const option = document.createElement("option");
-      option.value = branch.name;
-      option.textContent = branch.current ? `${branch.name} current` : branch.name;
-      option.selected = branch.current;
-      branchSelect.append(option);
-
       const sourceOption = document.createElement("option");
       sourceOption.value = branch.name;
       sourceOption.textContent = branch.name;

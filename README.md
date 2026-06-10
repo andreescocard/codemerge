@@ -51,6 +51,7 @@ all without ever leaving the editor.
 | 🖱️ | **Context menu** — branch right-click menu modeled after Sublime Merge |
 | 📜 | **Commit history** — graph rail, refs, author, relative time, pagination, and cherry-pick |
 | ⚡ | **Staging actions** — stage, unstage, discard, reset, and commit (with amend) |
+| 🤖 | **AI commit messages** — draft Conventional Commits summaries from your diff via the OpenAI Codex SDK |
 | 🔬 | **Hunk & line staging** — stage or unstage individual hunks and selected lines |
 | 📦 | **Stash workflow** — push, apply, pop, drop, and show stashes |
 | 🏷️ | **Tags** — create, delete, and push tags |
@@ -117,7 +118,12 @@ You can also run it from the Command Palette:
 
 ```text
 CodeMerge: Open Git Client
+CodeMerge: Checkout Branch by Name
 ```
+
+> 💡 `Ctrl+Shift+B` (`Cmd+Shift+B` on macOS) prompts for a branch name and checks it out — offering to create it from `HEAD` if it doesn't exist.
+
+> 🤖 The **AI commit message** button drafts a Conventional Commits summary from your staged (or working-tree) diff using the [OpenAI Codex SDK](https://www.npmjs.com/package/@openai/codex-sdk). It requires a working Codex CLI login on your machine.
 
 ---
 
@@ -156,7 +162,7 @@ Right-click a branch in **Locations** to access:
 2. Press `F5`.
 3. In the Extension Development Host, open CodeMerge from the Activity Bar.
 
-**Layout:** the extension host lives in `src/` — `git/` (client, diff, graph, status/log parsers, types),
+**Layout:** the extension host lives in `src/` — `git/` (client, diff, graph, status/log parsers, AI commit-message generator, types),
 `panel/` (full workbench panel + HTML), `utils/`, `protocol.ts` (the webview message contract), and
 `extension.ts` (entry point). The webview client is `media/main.js` + `media/styles.css`.
 
