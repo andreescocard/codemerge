@@ -187,9 +187,12 @@ Extension behavior is verified manually in the Extension Development Host (`F5`)
 - [x] Tag and stash providers
 - [x] File-level history (blame)
 - [x] Conflict-aware merge, rebase, and cherry-pick flows
+- [x] Commit detail — metadata, graph, and per-commit files on demand
+- [x] AI commit message drafting (OpenAI Codex SDK)
+- [x] Checkout branch by name (`Ctrl+Shift+B`)
 - [ ] Richer remote branch grouping
-- [ ] Commit detail actions
 - [ ] Optional graph density controls
+- [ ] Interactive rebase (reorder / squash / reword)
 
 ---
 
