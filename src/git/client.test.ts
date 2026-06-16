@@ -32,7 +32,7 @@ describe("GitClient", () => {
 
   it("reads branch and commit state from a real repository", async () => {
     expect(await client.currentBranch()).toBe("main");
-    expect(await client.branches()).toContainEqual({ name: "main", current: true });
+    expect(await client.branches()).toContainEqual({ name: "main", current: true, upstream: undefined, ahead: 0, behind: 0 });
     expect((await client.commits())[0]).toMatchObject({
       subject: "initial",
       author: "CodeMerge Tests",

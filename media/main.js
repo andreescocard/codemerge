@@ -361,8 +361,14 @@
       const branchRow = document.createElement("button");
       branchRow.className = `branchRow ${branch.current ? "current" : ""}`;
       branchRow.type = "button";
-      branchRow.title = branch.name;
+      branchRow.title = branchStatusTitle(branch);
       branchRow.append(icon("branch"), textSpan(branch.name, "branchName"));
+      const status = branchStatusLabel(branch);
+      if (status) {
+        const statusSpan = textSpan(status, `branchStatus ${branch.behind > 0 ? "needsPull" : ""}`);
+        statusSpan.title = branchRow.title;
+        branchRow.append(statusSpan);
+      }
       branchRow.addEventListener("click", () => {
         if (!branch.current) {
           post("checkout", { branch: branch.name });
@@ -374,6 +380,31 @@
       });
       branchTree.append(branchRow);
     });
+  }
+
+  function branchStatusLabel(branch) {
+    const parts = [];
+    if (branch.behind > 0) {
+      parts.push(`pull ${branch.behind}`);
+    }
+    if (branch.ahead > 0) {
+      parts.push(`push ${branch.ahead}`);
+    }
+    return parts.join(" / ");
+  }
+
+  function branchStatusTitle(branch) {
+    const details = [];
+    if (branch.upstream) {
+      details.push(`tracks ${branch.upstream}`);
+    }
+    if (branch.behind > 0) {
+      details.push(`${branch.behind} change${branch.behind === 1 ? "" : "s"} to pull`);
+    }
+    if (branch.ahead > 0) {
+      details.push(`${branch.ahead} local commit${branch.ahead === 1 ? "" : "s"} to push`);
+    }
+    return details.length ? `${branch.name} - ${details.join(", ")}` : branch.name;
   }
 
   function renderRemotes(remotes) {

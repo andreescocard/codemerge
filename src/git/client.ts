@@ -52,7 +52,7 @@ export class GitClient {
   }
 
   async branches(): Promise<Branch[]> {
-    const output = await this.git(["branch", "--format=%(HEAD)|%(refname:short)"]);
+    const output = await this.git(["branch", "--format=%(HEAD)|%(refname:short)|%(upstream:short)|%(upstream:track)"]);
     return parseBranches(output);
   }
 
@@ -429,12 +429,30 @@ export class GitClient {
     return this.git(["pull", ...strategyArgs, "origin", branch], gitNetworkTimeoutMs);
   }
 
-  push(): Promise<string> {
-    return this.git(["push"], gitNetworkTimeoutMs);
+  async push(): Promise<string> {
+    try {
+      return await this.git(["push"], gitNetworkTimeoutMs);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("no upstream branch") || msg.includes("--set-upstream")) {
+        const branch = await this.currentBranch();
+        return this.git(["push", "--set-upstream", "origin", branch], gitNetworkTimeoutMs);
+      }
+      throw err;
+    }
   }
 
-  forcePushWithLease(): Promise<string> {
-    return this.git(["push", "--force-with-lease"], gitNetworkTimeoutMs);
+  async forcePushWithLease(): Promise<string> {
+    try {
+      return await this.git(["push", "--force-with-lease"], gitNetworkTimeoutMs);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("no upstream branch") || msg.includes("--set-upstream")) {
+        const branch = await this.currentBranch();
+        return this.git(["push", "--set-upstream", "--force-with-lease", "origin", branch], gitNetworkTimeoutMs);
+      }
+      throw err;
+    }
   }
 
   private async patchForHunk(filePath: string, kind: DiffSectionKind, hunkIndex: number): Promise<string> {

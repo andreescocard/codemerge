@@ -13,6 +13,7 @@ export class CodeMergePanel {
   private commitScope: string | undefined;
   private selectedFile: string | undefined;
   private refreshRequest = 0;
+  private fetchedOnOpen = false;
 
   static createOrShow(extensionUri: vscode.Uri, root: string) {
     if (CodeMergePanel.currentPanel) {
@@ -572,6 +573,14 @@ export class CodeMergePanel {
     this.panel.webview.postMessage({ type: "loading", loading: true });
 
     try {
+      if (!this.fetchedOnOpen) {
+        this.fetchedOnOpen = true;
+        try {
+          await this.client.fetch();
+        } catch (error) {
+          vscode.window.showWarningMessage(`CodeMerge could not fetch remotes: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
       const snapshot = await this.client.snapshot(this.commitLimit, this.commitScope);
       if (request !== this.refreshRequest) {
         return;

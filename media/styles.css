@@ -345,6 +345,33 @@ textarea:focus {
   gap: 6px;
 }
 
+.branchName {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.branchStatus {
+  flex: 0 0 auto;
+  max-width: 82px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: var(--vscode-badge-foreground);
+  background: var(--vscode-badge-background);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.branchStatus.needsPull {
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+}
+
 .branchRow.current {
   font-weight: 700;
   color: var(--text);

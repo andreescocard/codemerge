@@ -35,6 +35,9 @@ export type GraphRoute = {
 export type Branch = {
   name: string;
   current: boolean;
+  upstream?: string;
+  ahead: number;
+  behind: number;
 };
 
 export type Stash = {

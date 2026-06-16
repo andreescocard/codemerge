@@ -9,8 +9,10 @@ export function parseBranches(output: string): Branch[] {
     .split(/\r?\n/)
     .filter(Boolean)
     .map((line) => {
-      const [head, name] = line.split("|");
-      return { name, current: head === "*" };
+      const [head, name = "", upstream = "", tracking = ""] = line.split("|");
+      const ahead = Number(tracking.match(/ahead\s+(\d+)/)?.[1] ?? 0);
+      const behind = Number(tracking.match(/behind\s+(\d+)/)?.[1] ?? 0);
+      return { name, current: head === "*", upstream: upstream || undefined, ahead, behind };
     });
 }
 

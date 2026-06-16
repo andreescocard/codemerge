@@ -21,9 +21,10 @@ describe("git parsers", () => {
   });
 
   it("parses formatted branch output", () => {
-    expect(parseBranches("*|main\n |feature\n")).toEqual([
-      { name: "main", current: true },
-      { name: "feature", current: false }
+    expect(parseBranches("*|main|origin/main|[behind 2]\n |feature|origin/feature|[ahead 1, behind 3]\n |local||\n")).toEqual([
+      { name: "main", current: true, upstream: "origin/main", ahead: 0, behind: 2 },
+      { name: "feature", current: false, upstream: "origin/feature", ahead: 1, behind: 3 },
+      { name: "local", current: false, upstream: undefined, ahead: 0, behind: 0 }
     ]);
   });
 
