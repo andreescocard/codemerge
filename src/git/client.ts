@@ -68,7 +68,34 @@ export class GitClient {
 
   async branches(): Promise<Branch[]> {
     const output = await this.git(["branch", "--format=%(HEAD)|%(refname:short)|%(upstream:short)|%(upstream:track)"]);
-    return parseBranches(output);
+    const branches = parseBranches(output);
+    return this.withImplicitTracking(branches);
+  }
+
+  // Branches with a configured upstream already carry ahead/behind from
+  // %(upstream:track). For the rest, fall back to comparing against
+  // origin/<name> when it exists — this is what Sublime Merge shows, so a
+  // local branch that was pushed but never `--set-upstream`'d still gets a badge.
+  private async withImplicitTracking(branches: Branch[]): Promise<Branch[]> {
+    const remoteRefs = new Set(
+      (await this.tryGit(["for-each-ref", "--format=%(refname:short)", "refs/remotes"]))
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+    );
+
+    return mapWithConcurrency(branches, 16, async (branch) => {
+      if (branch.upstream || branch.ahead || branch.behind) {
+        return branch;
+      }
+      const candidate = `origin/${branch.name}`;
+      if (!remoteRefs.has(candidate)) {
+        return branch;
+      }
+      const counts = await this.tryGit(["rev-list", "--left-right", "--count", `${branch.name}...${candidate}`]);
+      const [ahead = "0", behind = "0"] = counts.trim().split(/\s+/);
+      return { ...branch, ahead: Number(ahead) || 0, behind: Number(behind) || 0 };
+    });
   }
 
   async commits(limit = defaultCommitLimit, revision?: string): Promise<Commit[]> {
