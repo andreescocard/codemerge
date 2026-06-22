@@ -372,6 +372,11 @@ textarea:focus {
   background: var(--vscode-button-background);
 }
 
+.branchStatus.needsPush {
+  color: var(--vscode-button-secondaryForeground, var(--vscode-badge-foreground));
+  background: var(--vscode-button-secondaryBackground, var(--vscode-badge-background));
+}
+
 .branchRow.current {
   font-weight: 700;
   color: var(--text);

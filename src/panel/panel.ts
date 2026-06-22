@@ -8,12 +8,14 @@ import { blameUri, showUri } from "./gitContent";
 export class CodeMergePanel {
   private static currentPanel: CodeMergePanel | undefined;
   private static readonly commitPageSize = 80;
+  private static readonly autoFetchIntervalMs = 180_000;
   private readonly client: GitClient;
   private commitLimit = CodeMergePanel.commitPageSize;
   private commitScope: string | undefined;
   private selectedFile: string | undefined;
   private refreshRequest = 0;
   private fetchedOnOpen = false;
+  private autoFetchTimer: ReturnType<typeof setInterval> | undefined;
 
   static createOrShow(extensionUri: vscode.Uri, root: string) {
     if (CodeMergePanel.currentPanel) {
@@ -44,11 +46,35 @@ export class CodeMergePanel {
   ) {
     this.client = new GitClient(root);
     this.panel.webview.html = renderHtml(this.panel.webview, extensionUri);
-    this.panel.onDidDispose(() => (CodeMergePanel.currentPanel = undefined));
+    this.panel.onDidDispose(() => {
+      CodeMergePanel.currentPanel = undefined;
+      if (this.autoFetchTimer) {
+        clearInterval(this.autoFetchTimer);
+        this.autoFetchTimer = undefined;
+      }
+    });
     this.panel.webview.onDidReceiveMessage((message) => this.handleMessage(message));
     // The initial load is requested by the webview (refresh/setCommitScope) once
     // its message listener is ready; posting a snapshot here would race that and
     // could be dropped before the webview finishes loading.
+
+    // Poll the remote so branch ahead/behind counts stay fresh without the user
+    // hitting fetch. Quiet: no spinner, errors swallowed (offline is expected).
+    this.autoFetchTimer = setInterval(() => void this.autoFetch(), CodeMergePanel.autoFetchIntervalMs);
+  }
+
+  private async autoFetch(): Promise<void> {
+    try {
+      await this.client.fetch();
+    } catch {
+      return; // offline / no remote — leave the last-known counts in place
+    }
+    try {
+      const snapshot = await this.client.snapshot(this.commitLimit, this.commitScope);
+      this.panel.webview.postMessage({ type: "snapshot", snapshot });
+    } catch {
+      // ignore; the next manual refresh or poll will recover
+    }
   }
 
   private async handleMessage(message: WebviewMessage) {

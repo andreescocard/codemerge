@@ -365,7 +365,8 @@
       branchRow.append(icon("branch"), textSpan(branch.name, "branchName"));
       const status = branchStatusLabel(branch);
       if (status) {
-        const statusSpan = textSpan(status, `branchStatus ${branch.behind > 0 ? "needsPull" : ""}`);
+        const statusClass = branch.behind > 0 ? "needsPull" : branch.ahead > 0 ? "needsPush" : "";
+        const statusSpan = textSpan(status, `branchStatus ${statusClass}`);
         statusSpan.title = branchRow.title;
         branchRow.append(statusSpan);
       }
@@ -385,12 +386,12 @@
   function branchStatusLabel(branch) {
     const parts = [];
     if (branch.behind > 0) {
-      parts.push(`pull ${branch.behind}`);
+      parts.push(`↓${branch.behind}`);
     }
     if (branch.ahead > 0) {
-      parts.push(`push ${branch.ahead}`);
+      parts.push(`↑${branch.ahead}`);
     }
-    return parts.join(" / ");
+    return parts.join(" ");
   }
 
   function branchStatusTitle(branch) {
