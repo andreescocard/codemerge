@@ -386,10 +386,10 @@
   function branchStatusLabel(branch) {
     const parts = [];
     if (branch.behind > 0) {
-      parts.push(`↓${branch.behind}`);
+      parts.push(`↓ ${branch.behind}`);
     }
     if (branch.ahead > 0) {
-      parts.push(`↑${branch.ahead}`);
+      parts.push(`↑ ${branch.ahead}`);
     }
     return parts.join(" ");
   }
