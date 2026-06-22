@@ -13,6 +13,21 @@ export type PullStrategy = "ffOnly" | "merge" | "rebase";
 export type ResetMode = "soft" | "mixed" | "hard";
 const defaultCommitLimit = 80;
 
+// Serialize every git invocation per repo root. git mutates `.git/index.lock`
+// on status/stash/add/commit/etc; running two at once on the same repo throws
+// "Unable to create '.git/index.lock': File exists". GitClient is constructed
+// fresh per call, so the queue must live at module scope, keyed by cwd. This is
+// what Sublime Merge does and why it never hits the lock race.
+const repoQueues = new Map<string, Promise<unknown>>();
+
+function enqueue<T>(key: string, task: () => Promise<T>): Promise<T> {
+  const prev = repoQueues.get(key) ?? Promise.resolve();
+  const run = prev.then(task, task);
+  // Keep the chain alive even if a task rejects; swallow only the tail's result.
+  repoQueues.set(key, run.then(() => undefined, () => undefined));
+  return run;
+}
+
 export class GitClient {
   constructor(private readonly cwd: string) {}
 
@@ -483,27 +498,18 @@ export class GitClient {
   }
 
   private git(args: string[], timeout = gitTimeoutMs): Promise<string> {
-    return new Promise((resolve, reject) => {
-      execFile("git", args, { cwd: this.cwd, windowsHide: true, timeout, maxBuffer: 20 * 1024 * 1024 }, (error, stdout, stderr) => {
-        if (error) {
-          const detail = (stderr || stdout || error.message).trim();
-          reject(new Error(error.killed ? `Git command timed out: git ${args.join(" ")}` : detail));
-          return;
-        }
-        resolve(stdout);
-      });
-    });
+    return enqueue(this.cwd, () => this.rawGit(args, timeout));
   }
 
   private tryGit(args: string[], timeout = gitTimeoutMs): Promise<string> {
-    return new Promise((resolve) => {
-      execFile("git", args, { cwd: this.cwd, windowsHide: true, timeout, maxBuffer: 20 * 1024 * 1024 }, (error, stdout) => {
-        resolve(error ? "" : stdout);
-      });
-    });
+    return enqueue(this.cwd, () => this.rawGit(args, timeout).catch(() => ""));
   }
 
   private gitWithInput(args: string[], input: string, timeout = gitTimeoutMs): Promise<string> {
+    return enqueue(this.cwd, () => this.rawGit(args, timeout, input));
+  }
+
+  private rawGit(args: string[], timeout: number, input?: string): Promise<string> {
     return new Promise((resolve, reject) => {
       const child = execFile("git", args, { cwd: this.cwd, windowsHide: true, timeout, maxBuffer: 20 * 1024 * 1024 }, (error, stdout, stderr) => {
         if (error) {
@@ -513,7 +519,9 @@ export class GitClient {
         }
         resolve(stdout);
       });
-      child.stdin?.end(input);
+      if (input !== undefined) {
+        child.stdin?.end(input);
+      }
     });
   }
 
