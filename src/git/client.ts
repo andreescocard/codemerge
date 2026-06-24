@@ -13,12 +13,33 @@ export type PullStrategy = "ffOnly" | "merge" | "rebase";
 export type ResetMode = "soft" | "mixed" | "hard";
 const defaultCommitLimit = 80;
 
-// Serialize every git invocation per repo root. git mutates `.git/index.lock`
-// on status/stash/add/commit/etc; running two at once on the same repo throws
-// "Unable to create '.git/index.lock': File exists". GitClient is constructed
-// fresh per call, so the queue must live at module scope, keyed by cwd. This is
-// what Sublime Merge does and why it never hits the lock race.
+// Two git processes that both write `.git/index.lock` at once throw
+// "Unable to create '.git/index.lock': File exists". We avoid that two ways:
+//   1. Read-only commands run with GIT_OPTIONAL_LOCKS=0 so `git status` (and
+//      friends) never create index.lock at all — they can't collide with anyone.
+//   2. The remaining index-mutating commands (add/commit/stash/checkout/merge/
+//      pull/...) are serialized per repo root so two writers never overlap.
+// Reads and network ops are NOT serialized — that earlier froze the UI, because
+// a slow `fetch` (up to 120s) blocked every status/diff/log behind it.
+// GitClient is constructed fresh per call, so the queue lives at module scope.
 const repoQueues = new Map<string, Promise<unknown>>();
+
+// git subcommands that take a write lock on the index/working tree.
+const mutatingSubcommands = new Set([
+  "add", "rm", "mv", "commit", "reset", "restore", "checkout", "switch",
+  "merge", "rebase", "cherry-pick", "revert", "stash", "pull", "am"
+]);
+
+function isMutating(args: string[]): boolean {
+  const sub = args[0];
+  if (!sub) {
+    return false;
+  }
+  if (sub === "apply") {
+    return args.includes("--cached"); // staging hunks/lines writes the index
+  }
+  return mutatingSubcommands.has(sub);
+}
 
 function enqueue<T>(key: string, task: () => Promise<T>): Promise<T> {
   const prev = repoQueues.get(key) ?? Promise.resolve();
@@ -525,20 +546,26 @@ export class GitClient {
   }
 
   private git(args: string[], timeout = gitTimeoutMs): Promise<string> {
-    return enqueue(this.cwd, () => this.rawGit(args, timeout));
+    const run = () => this.rawGit(args, timeout);
+    return isMutating(args) ? enqueue(this.cwd, run) : run();
   }
 
   private tryGit(args: string[], timeout = gitTimeoutMs): Promise<string> {
-    return enqueue(this.cwd, () => this.rawGit(args, timeout).catch(() => ""));
+    const run = () => this.rawGit(args, timeout).catch(() => "");
+    return isMutating(args) ? enqueue(this.cwd, run) : run();
   }
 
   private gitWithInput(args: string[], input: string, timeout = gitTimeoutMs): Promise<string> {
-    return enqueue(this.cwd, () => this.rawGit(args, timeout, input));
+    const run = () => this.rawGit(args, timeout, input);
+    return isMutating(args) ? enqueue(this.cwd, run) : run();
   }
 
   private rawGit(args: string[], timeout: number, input?: string): Promise<string> {
+    // Read-only commands run with optional locks disabled so they never create
+    // `.git/index.lock` and so can never collide with a concurrent write.
+    const env = isMutating(args) ? process.env : { ...process.env, GIT_OPTIONAL_LOCKS: "0" };
     return new Promise((resolve, reject) => {
-      const child = execFile("git", args, { cwd: this.cwd, windowsHide: true, timeout, maxBuffer: 20 * 1024 * 1024 }, (error, stdout, stderr) => {
+      const child = execFile("git", args, { cwd: this.cwd, windowsHide: true, timeout, maxBuffer: 20 * 1024 * 1024, env }, (error, stdout, stderr) => {
         if (error) {
           const detail = (stderr || stdout || error.message).trim();
           reject(new Error(error.killed ? `Git command timed out: git ${args.join(" ")}` : detail));

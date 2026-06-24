@@ -599,20 +599,22 @@ export class CodeMergePanel {
     this.panel.webview.postMessage({ type: "loading", loading: true });
 
     try {
-      if (!this.fetchedOnOpen) {
-        this.fetchedOnOpen = true;
-        try {
-          await this.client.fetch();
-        } catch (error) {
-          vscode.window.showWarningMessage(`CodeMerge could not fetch remotes: ${error instanceof Error ? error.message : String(error)}`);
-        }
-      }
       const snapshot = await this.client.snapshot(this.commitLimit, this.commitScope);
       if (request !== this.refreshRequest) {
         return;
       }
 
       this.panel.webview.postMessage({ type: "snapshot", snapshot });
+
+      // Render from local state first, then fetch in the background. The first
+      // open used to await a network fetch before the snapshot, which — now that
+      // all git runs through one serialized queue — blocked the whole repo from
+      // loading until fetch returned (or hung on auth). Kicked here (after the
+      // snapshot is already enqueued) so it never sits ahead of the first render.
+      if (!this.fetchedOnOpen) {
+        this.fetchedOnOpen = true;
+        void this.autoFetch();
+      }
 
       if (selectedPath && snapshot.files.some((file) => file.path === selectedPath)) {
         this.selectedFile = selectedPath;
