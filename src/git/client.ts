@@ -364,6 +364,12 @@ export class GitClient {
     return this.git(["restore", "."]);
   }
 
+  // Reset both index and working tree of the given paths to HEAD. Used to clear
+  // the local changes that block a checkout ("would be overwritten by checkout").
+  restorePaths(paths: string[]): Promise<string> {
+    return this.git(["restore", "--staged", "--worktree", "--", ...paths]);
+  }
+
   commit(message: string): Promise<string> {
     return this.git(["commit", "-m", message]);
   }

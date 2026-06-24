@@ -5,6 +5,29 @@ import { generateCommitMessage } from "../git/commitMessage";
 import { MessageType, type WebviewMessage } from "../protocol";
 import { renderHtml } from "./html";
 import { blameUri, showUri } from "./gitContent";
+
+// Pull the file list out of git's "would be overwritten by checkout" error. Git
+// prints one tab-indented path per line between the header and the "Please commit
+// ... Aborting" footer.
+export function parseOverwriteFiles(message: string): string[] {
+  const lines = message.split(/\r?\n/);
+  const start = lines.findIndex((line) => /overwritten by checkout/.test(line));
+  if (start === -1) {
+    return [];
+  }
+  const files: string[] = [];
+  for (let i = start + 1; i < lines.length; i++) {
+    if (!/^\s/.test(lines[i])) {
+      break;
+    }
+    const file = lines[i].trim();
+    if (file) {
+      files.push(file);
+    }
+  }
+  return files;
+}
+
 export class CodeMergePanel {
   private static currentPanel: CodeMergePanel | undefined;
   private static readonly commitPageSize = 80;
@@ -208,8 +231,10 @@ export class CodeMergePanel {
           break;
         case MessageType.Checkout:
           if (message.branch) {
-            await this.client.checkout(message.branch);
-            await this.refresh();
+            const switched = await this.attemptCheckout(message.branch);
+            if (switched) {
+              await this.refresh();
+            }
           }
           break;
         case MessageType.CheckoutByName:
@@ -579,8 +604,10 @@ export class CodeMergePanel {
       return;
     }
     try {
-      await this.client.checkout(name);
-      await this.refresh();
+      const switched = await this.attemptCheckout(name);
+      if (switched) {
+        await this.refresh();
+      }
     } catch {
       const create = await vscode.window.showWarningMessage(
         `Branch "${name}" not found. Create it from HEAD?`,
@@ -591,6 +618,39 @@ export class CodeMergePanel {
         await this.client.checkoutNewBranch(name);
         await this.refresh();
       }
+    }
+  }
+
+  // Checkout that recovers from "would be overwritten by checkout" by offering to
+  // discard or stash the conflicting files. Returns true when the branch switched.
+  // Non-overwrite errors (e.g. unknown branch) are rethrown for callers to handle.
+  private async attemptCheckout(branch: string): Promise<boolean> {
+    try {
+      await this.client.checkout(branch);
+      return true;
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      const files = parseOverwriteFiles(detail);
+      if (files.length === 0) {
+        throw error;
+      }
+      const choice = await vscode.window.showWarningMessage(
+        `Local changes to ${files.length} file(s) would be overwritten by switching to "${branch}":\n\n${files.join("\n")}`,
+        { modal: true },
+        "Discard & Checkout",
+        "Stash & Checkout"
+      );
+      if (choice === "Discard & Checkout") {
+        await this.client.restorePaths(files);
+        await this.client.checkout(branch);
+        return true;
+      }
+      if (choice === "Stash & Checkout") {
+        await this.client.stashPush(`codemerge: before checkout ${branch}`, true);
+        await this.client.checkout(branch);
+        return true;
+      }
+      return false;
     }
   }
 
