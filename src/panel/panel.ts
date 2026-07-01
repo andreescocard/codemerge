@@ -641,7 +641,11 @@ export class CodeMergePanel {
         "Stash & Checkout"
       );
       if (choice === "Discard & Checkout") {
-        await this.client.restorePaths(files);
+        // Tracked changes clear with `git restore`; untracked files that block the
+        // checkout only clear with `git clean`. The blocking set can contain both,
+        // so try each and ignore the "did not match" failure from the wrong tool.
+        await this.client.restorePaths(files).catch(() => "");
+        await this.client.cleanPaths(files).catch(() => "");
         await this.client.checkout(branch);
         return true;
       }

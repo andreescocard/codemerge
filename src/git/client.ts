@@ -370,6 +370,13 @@ export class GitClient {
     return this.git(["restore", "--staged", "--worktree", "--", ...paths]);
   }
 
+  // Delete untracked files that block a checkout. `git restore` only touches
+  // tracked paths, so untracked "would be overwritten by checkout" files must be
+  // removed with `git clean` instead.
+  cleanPaths(paths: string[]): Promise<string> {
+    return this.git(["clean", "-f", "-d", "--", ...paths]);
+  }
+
   commit(message: string): Promise<string> {
     return this.git(["commit", "-m", message]);
   }
